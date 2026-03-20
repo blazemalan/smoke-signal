@@ -1,0 +1,15 @@
+defaults:
+  model: large-v3
+  language: auto
+  compute_type: float16
+  output_dir: ./transcripts
+
+profiles:
+  therapy:
+    speakers: 2
+    identify: true
+    model: large-v3
+  work:
+    speakers: 4
+    identify: true
+    model: large-v3-turbo
