@@ -7,7 +7,7 @@ from pathlib import Path
 
 import click
 
-from scribe.config import (
+from smoke_signal.config import (
     DEFAULT_PROFILES_DIR,
     DEFAULT_TRANSCRIPTS_DIR,
     get_hf_token,
@@ -19,7 +19,7 @@ from scribe.config import (
 
 @click.group()
 def main():
-    """Scribe — local-first audio transcription with speaker diarization."""
+    """Smoke Signal — local-first audio transcription with speaker diarization."""
     load_env()
 
 
@@ -36,9 +36,9 @@ def main():
 @click.option("--batch-size", type=int, default=16, help="Whisper batch size (lower = less VRAM)")
 def transcribe(audio_file, model, language, speakers, identify, output, compute_type, profile, vault, batch_size):
     """Transcribe an audio file with speaker diarization."""
-    from scribe.gpu import check_gpu, check_vram_sufficient
-    from scribe.output.markdown import format_transcript, get_output_path
-    from scribe.pipeline.local import transcribe as run_transcribe
+    from smoke_signal.gpu import check_gpu, check_vram_sufficient
+    from smoke_signal.output.markdown import format_transcript, get_output_path
+    from smoke_signal.pipeline.local import transcribe as run_transcribe
 
     # Load config and merge with profile
     config = load_config()
@@ -83,7 +83,7 @@ def transcribe(audio_file, model, language, speakers, identify, output, compute_
 
     # Speaker identification
     if identify:
-        from scribe.enrollment.matcher import identify_speakers
+        from smoke_signal.enrollment.matcher import identify_speakers
         hf_token = get_hf_token()
         result = identify_speakers(
             result, audio_file, DEFAULT_PROFILES_DIR, hf_token, device,
@@ -117,8 +117,8 @@ def enroll(name, audio_file, append):
 
     Provide 30-60 seconds of solo speech for best results.
     """
-    from scribe.enrollment.manager import enroll_speaker
-    from scribe.gpu import check_gpu
+    from smoke_signal.enrollment.manager import enroll_speaker
+    from smoke_signal.gpu import check_gpu
 
     gpu_info = check_gpu()
     device = gpu_info["device"]
@@ -145,7 +145,7 @@ def profiles():
 @profiles.command("list")
 def profiles_list():
     """List all enrolled speaker profiles."""
-    from scribe.enrollment.manager import list_profiles
+    from smoke_signal.enrollment.manager import list_profiles
 
     profs = list_profiles(DEFAULT_PROFILES_DIR)
     if not profs:
@@ -165,7 +165,7 @@ def profiles_list():
 @click.argument("name")
 def profiles_delete(name):
     """Delete a speaker profile."""
-    from scribe.enrollment.manager import delete_profile
+    from smoke_signal.enrollment.manager import delete_profile
 
     if delete_profile(name, DEFAULT_PROFILES_DIR):
         click.echo(f"Deleted profile '{name}'.")
@@ -189,7 +189,7 @@ def verify():
         click.echo(f"PyTorch: {torch.__version__}")
         click.echo(f"CUDA available: {torch.cuda.is_available()}")
         if torch.cuda.is_available():
-            from scribe.gpu import check_gpu
+            from smoke_signal.gpu import check_gpu
             gpu = check_gpu()
             click.echo(f"GPU: {gpu['name']}")
             click.echo(f"VRAM: {gpu['vram_total_mb']}MB")
@@ -237,6 +237,130 @@ def verify():
 
     click.echo()
     click.echo("=== Check Complete ===")
+
+
+@main.command()
+@click.option("--once", is_flag=True, help="Check for new files once and exit (no daemon)")
+@click.option("--scan-days", default=7, help="How many days back to scan for unprocessed files")
+@click.option("--backfill", type=int, default=None, help="Process unprocessed files from last N days")
+@click.option("--no-tray", is_flag=True, help="Run headless without system tray icon")
+def watch(once, scan_days, backfill, no_tray):
+    """Start the file watcher daemon to auto-transcribe new recordings."""
+    from smoke_signal.watcher.daemon import run_daemon, run_once
+
+    if once:
+        run_once()
+    else:
+        run_daemon(scan_days=scan_days, use_tray=not no_tray)
+
+
+@main.command("classify")
+@click.argument("file_path", type=click.Path(exists=True, path_type=Path))
+@click.argument("description")
+def classify_file(file_path, description):
+    """Manually classify a held recording and trigger processing."""
+    from smoke_signal.config import DEFAULT_DATA_DIR, DEFAULT_DB_PATH
+    from smoke_signal.watcher.classifier import classify_from_description
+    from smoke_signal.watcher.job import run_job
+    from smoke_signal.watcher.queue import GpuLock
+    from smoke_signal.watcher.state import init_db, record_file, update_status
+
+    init_db(DEFAULT_DB_PATH)
+
+    classification = classify_from_description(file_path, description)
+    click.echo(
+        f"Classified as: {classification.meeting_type} "
+        f"(profile={classification.profile})"
+    )
+
+    # Update or insert record
+    record_file(
+        DEFAULT_DB_PATH,
+        file_path,
+        file_size=file_path.stat().st_size,
+        recording_date=classification.recording_date,
+        recording_time=classification.recording_time,
+        status="pending",
+        meeting_type=classification.meeting_type,
+        description=description,
+        profile=classification.profile,
+    )
+
+    # Acquire GPU lock and process
+    gpu_lock = GpuLock(DEFAULT_DATA_DIR / "gpu.lock")
+    if not gpu_lock.acquire(timeout=60):
+        click.echo("GPU is busy (watcher is processing). Queued for later.")
+        return
+
+    try:
+        update_status(DEFAULT_DB_PATH, file_path, "processing")
+        job = {
+            "file_path": str(file_path),
+            "profile": classification.profile,
+            "meeting_type": classification.meeting_type,
+            "recording_date": classification.recording_date,
+        }
+        run_job(job, DEFAULT_DB_PATH)
+        click.echo("Done!")
+    except Exception as e:
+        update_status(DEFAULT_DB_PATH, file_path, "failed", error_message=str(e)[:500])
+        click.echo(f"Failed: {e}")
+    finally:
+        gpu_lock.release()
+
+
+@main.command()
+def status():
+    """Show watcher status: queue depth, recent jobs, held files."""
+    from smoke_signal.config import DEFAULT_DATA_DIR, DEFAULT_DB_PATH
+    from smoke_signal.watcher.queue import GpuLock
+    from smoke_signal.watcher.state import get_held, get_pending, get_recent_jobs, init_db
+
+    if not DEFAULT_DB_PATH.exists():
+        click.echo("Watcher has not been run yet. Start with: scribe watch")
+        return
+
+    init_db(DEFAULT_DB_PATH)
+
+    gpu_lock = GpuLock(DEFAULT_DATA_DIR / "gpu.lock")
+    gpu_status = "busy" if gpu_lock.is_locked else "idle"
+
+    pending = get_pending(DEFAULT_DB_PATH)
+    held = get_held(DEFAULT_DB_PATH)
+    recent = get_recent_jobs(DEFAULT_DB_PATH, limit=10)
+
+    click.echo(f"GPU: {gpu_status}")
+    click.echo(f"Queue: {len(pending)} pending")
+    click.echo(f"Held: {len(held)} awaiting classification")
+    click.echo()
+
+    if held:
+        click.echo("=== Held Files ===")
+        for h in held:
+            name = Path(h["file_path"]).name
+            date = h.get("recording_date", "?")
+            click.echo(f"  {name} ({date})")
+        click.echo()
+
+    if recent:
+        click.echo("=== Recent Jobs ===")
+        click.echo(f"{'Status':<12} {'File':<30} {'Type':<12} {'Time'}")
+        click.echo("-" * 70)
+        for job in recent:
+            status_icon = {
+                "completed": "✓",
+                "failed": "✗",
+                "processing": "…",
+                "pending": "○",
+                "held": "?",
+                "seen": "—",
+            }.get(job["status"], " ")
+            name = Path(job["file_path"]).name[:28]
+            mtype = (job.get("meeting_type") or "")[:10]
+            ptime = ""
+            if job.get("processing_time_seconds"):
+                ptime = f"{job['processing_time_seconds']:.0f}s"
+            click.echo(f"  {status_icon} {job['status']:<9} {name:<30} {mtype:<12} {ptime}")
 
 
 if __name__ == "__main__":

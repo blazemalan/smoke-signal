@@ -6,8 +6,8 @@ import click
 import numpy as np
 import torch
 
-from scribe.enrollment.manager import load_all_embeddings
-from scribe.models import TranscriptResult
+from smoke_signal.enrollment.manager import load_all_embeddings
+from smoke_signal.models import TranscriptResult
 
 
 SIMILARITY_THRESHOLD = 0.70
@@ -70,13 +70,13 @@ def _extract_speaker_embeddings(
 ) -> dict[str, np.ndarray]:
     """Extract a representative embedding for each diarized speaker."""
     from pyannote.audio import Model, Inference
-    from scribe.audio import preprocess_audio
+    from smoke_signal.audio import preprocess_audio
 
     wav_path = preprocess_audio(audio_path)
 
     try:
         model = Model.from_pretrained(
-            "pyannote/embedding", use_auth_token=hf_token,
+            "pyannote/embedding", token=hf_token,
         )
         inference = Inference(model, window="sliding", duration=3.0, step=1.5, device=torch.device(device))
 
@@ -87,10 +87,16 @@ def _extract_speaker_embeddings(
                 speaker_segments.setdefault(seg.speaker, []).append((seg.start, seg.end))
 
         speaker_embeddings = {}
-        import torchaudio
+        import soundfile as sf
 
-        waveform, sr = torchaudio.load(str(wav_path))
+        audio_data, sr = sf.read(str(wav_path), dtype="float32")
+        waveform = torch.from_numpy(audio_data)
+        if waveform.ndim == 1:
+            waveform = waveform.unsqueeze(0)
+        else:
+            waveform = waveform.T  # soundfile returns (samples, channels), we need (channels, samples)
         if sr != 16000:
+            import torchaudio
             waveform = torchaudio.functional.resample(waveform, sr, 16000)
             sr = 16000
 
@@ -116,7 +122,18 @@ def _extract_speaker_embeddings(
 
             # Use "whole" inference on the concatenated chunk
             speaker_embedding = inference({"waveform": speaker_audio, "sample_rate": sr})
-            vec = speaker_embedding.data.flatten()
+            if hasattr(speaker_embedding, 'data'):
+                raw = np.array(speaker_embedding.data)
+            else:
+                raw = np.array(speaker_embedding)
+            # Sliding window returns (N, 512) — average across windows
+            if raw.ndim == 2:
+                vec = raw.mean(axis=0)
+            else:
+                vec = raw.flatten()
+            # Ensure 512-dim
+            if vec.shape[0] != 512 and vec.shape[0] % 512 == 0:
+                vec = vec.reshape(-1, 512).mean(axis=0)
             norm = np.linalg.norm(vec)
             if norm > 0:
                 vec = vec / norm
@@ -125,7 +142,8 @@ def _extract_speaker_embeddings(
         return speaker_embeddings
     finally:
         wav_path.unlink(missing_ok=True)
-        del model, inference
+        model = None
+        inference = None
         torch.cuda.empty_cache()
 
 

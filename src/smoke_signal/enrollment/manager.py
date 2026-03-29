@@ -22,7 +22,7 @@ def enroll_speaker(
     For best results, use a recording of solo speech (30-60 seconds minimum).
     """
     from pyannote.audio import Model, Inference
-    from scribe.audio import preprocess_audio, validate_audio_file
+    from smoke_signal.audio import preprocess_audio, validate_audio_file
 
     validate_audio_file(audio_path)
     profiles_dir.mkdir(parents=True, exist_ok=True)
@@ -35,14 +35,23 @@ def enroll_speaker(
         # Load the embedding model
         click.echo("Loading speaker embedding model...")
         model = Model.from_pretrained(
-            "pyannote/embedding", use_auth_token=hf_token,
+            "pyannote/embedding", token=hf_token,
         )
         inference = Inference(model, window="whole", device=torch.device(device))
 
-        # Extract embedding
+        # Load audio with soundfile (bypasses pyannote 4.x / torchaudio AudioDecoder bugs)
         click.echo("Extracting speaker embedding...")
-        embedding = inference(str(wav_path))
-        embedding_vec = embedding.data.flatten()
+        import soundfile as sf
+        audio_data, sample_rate = sf.read(str(wav_path), dtype="float32")
+        # soundfile returns (samples,) for mono — reshape to (1, samples) tensor
+        waveform = torch.from_numpy(audio_data).unsqueeze(0)
+        audio_input = {"waveform": waveform, "sample_rate": sample_rate}
+        embedding = inference(audio_input)
+        # Handle different return types from pyannote Inference
+        if hasattr(embedding, 'data'):
+            embedding_vec = np.array(embedding.data).flatten()
+        else:
+            embedding_vec = np.array(embedding).flatten()
 
         # L2-normalize
         norm = np.linalg.norm(embedding_vec)
@@ -50,7 +59,8 @@ def enroll_speaker(
             embedding_vec = embedding_vec / norm
     finally:
         wav_path.unlink(missing_ok=True)
-        del model, inference
+        model = None
+        inference = None
         torch.cuda.empty_cache()
 
     # Load or create profile

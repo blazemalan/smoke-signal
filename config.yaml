@@ -1,15 +1,31 @@
 defaults:
-  model: large-v3
+  model: large-v3-turbo
   language: auto
   compute_type: float16
   output_dir: ./transcripts
 
 profiles:
-  therapy:
-    speakers: 2
-    identify: true
-    model: large-v3
-  work:
+  default:
     speakers: 4
     identify: true
     model: large-v3-turbo
+  small-group:
+    speakers: 2
+    identify: true
+    model: large-v3
+
+watcher:
+  watch_dir: "C:\\Users\\blaze\\iCloudDrive\\iCloud~com~openplanetsoftware~just-press-record"
+  scan_days: 7
+  stability_seconds: 30
+  min_file_size_bytes: 50000
+  enable_notifications: true
+
+  # Categories — customize these to match your workflow.
+  # Files with matching keywords in the filename get auto-classified.
+  # Unmatched files are held for manual classification.
+  categories:
+    meeting: ["meeting", "sync", "standup", "1on1", "check-in", "call"]
+    interview: ["interview", "candidate"]
+    lecture: ["lecture", "class", "course", "seminar"]
+    personal: ["journal", "note", "memo", "thought", "voice"]

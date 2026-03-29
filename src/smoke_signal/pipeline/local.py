@@ -3,14 +3,16 @@
 import gc
 import time
 from pathlib import Path
+from typing import Callable
 
 import click
 import torch
 import whisperx
+from whisperx.diarize import DiarizationPipeline
 
-from scribe.audio import get_audio_duration, preprocess_audio, validate_audio_file
-from scribe.config import get_hf_token
-from scribe.models import Segment, TranscriptResult, Word
+from smoke_signal.audio import get_audio_duration, preprocess_audio, validate_audio_file
+from smoke_signal.config import get_hf_token
+from smoke_signal.models import Segment, TranscriptResult, Word
 
 
 def transcribe(
@@ -21,16 +23,17 @@ def transcribe(
     num_speakers: int | None = None,
     device: str = "cuda",
     batch_size: int = 16,
+    log_fn: Callable[[str], None] = click.echo,
 ) -> TranscriptResult:
     """Run the full WhisperX pipeline: transcribe → align → diarize."""
     start_time = time.time()
     validate_audio_file(audio_path)
 
     duration = get_audio_duration(audio_path)
-    click.echo(f"Audio duration: {_format_duration(duration)}")
+    log_fn(f"Audio duration: {_format_duration(duration)}")
 
     # Step 1: Preprocess audio to 16kHz mono WAV
-    click.echo("Preprocessing audio...")
+    log_fn("Preprocessing audio...")
     wav_path = preprocess_audio(audio_path)
 
     try:
@@ -41,21 +44,21 @@ def transcribe(
             wav_path.unlink(missing_ok=True)
 
     # Step 2: Transcribe with WhisperX
-    click.echo(f"Loading Whisper model ({model_name}, {compute_type})...")
+    log_fn(f"Loading Whisper model ({model_name}, {compute_type})...")
     model = whisperx.load_model(
         model_name,
         device=device,
         compute_type=compute_type,
     )
 
-    click.echo("Transcribing...")
+    log_fn("Transcribing...")
     lang = None if language == "auto" else language
     result = model.transcribe(audio, batch_size=batch_size, language=lang)
     detected_language = result.get("language", "en")
-    click.echo(f"Detected language: {detected_language}")
+    log_fn(f"Detected language: {detected_language}")
 
     # Step 3: Align (word-level timestamps)
-    click.echo("Aligning timestamps...")
+    log_fn("Aligning timestamps...")
     try:
         align_model, align_metadata = whisperx.load_align_model(
             language_code=detected_language, device=device
@@ -66,19 +69,19 @@ def transcribe(
         )
         del align_model
     except Exception as e:
-        click.echo(f"Warning: Alignment failed ({e}), continuing without word-level timestamps.")
+        log_fn(f"Warning: Alignment failed ({e}), continuing without word-level timestamps.")
 
     # Step 4: Unload Whisper to free VRAM
     del model
     gc.collect()
     torch.cuda.empty_cache()
-    click.echo("Whisper model unloaded, VRAM freed.")
+    log_fn("Whisper model unloaded, VRAM freed.")
 
     # Step 5: Diarize
-    click.echo("Running speaker diarization...")
+    log_fn("Running speaker diarization...")
     hf_token = get_hf_token()
-    diarize_model = whisperx.DiarizationPipeline(
-        use_auth_token=hf_token, device=device,
+    diarize_model = DiarizationPipeline(
+        use_auth_token=hf_token, device=torch.device(device),
     )
 
     diarize_kwargs = {}
@@ -101,7 +104,7 @@ def transcribe(
     speakers = sorted({s.speaker for s in segments if s.speaker})
 
     processing_time = time.time() - start_time
-    click.echo(f"Done in {_format_duration(processing_time)}. Found {len(speakers)} speaker(s).")
+    log_fn(f"Done in {_format_duration(processing_time)}. Found {len(speakers)} speaker(s).")
 
     from datetime import datetime
 

@@ -2,5 +2,5 @@
 REM Drag and drop an audio file onto this .bat to transcribe it
 REM Uses the "therapy" profile by default (2 speakers, local, identify on)
 call conda activate scribe
-scribe transcribe "%~1" --profile therapy --identify
+smoke-signal transcribe "%~1" --profile therapy --identify
 pause

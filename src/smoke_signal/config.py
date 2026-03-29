@@ -12,6 +12,9 @@ DEFAULT_CONFIG_PATH = PROJECT_ROOT / "config.yaml"
 DEFAULT_ENV_PATH = PROJECT_ROOT / ".env"
 DEFAULT_PROFILES_DIR = PROJECT_ROOT / "profiles"
 DEFAULT_TRANSCRIPTS_DIR = PROJECT_ROOT / "transcripts"
+DEFAULT_DATA_DIR = PROJECT_ROOT / "data"
+DEFAULT_DB_PATH = DEFAULT_DATA_DIR / "watcher.db"
+DEFAULT_LOGS_DIR = PROJECT_ROOT / "logs"
 
 
 def load_env(env_path: Path | None = None) -> None:
@@ -42,3 +45,7 @@ def get_profile(config: dict, profile_name: str) -> dict:
     profile = config.get("profiles", {}).get(profile_name, {})
     merged = {**defaults, **profile}
     return merged
+
+
+def get_watcher_config(config: dict) -> dict:
+    return config.get("watcher", {})

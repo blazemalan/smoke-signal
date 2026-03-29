@@ -5,7 +5,7 @@ from pathlib import Path
 
 import yaml
 
-from scribe.models import Segment, TranscriptResult
+from smoke_signal.models import Segment, TranscriptResult
 
 
 def format_transcript(result: TranscriptResult, vault_mode: bool = False) -> str:
