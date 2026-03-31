@@ -6,6 +6,7 @@ from pathlib import Path
 from typing import Callable
 
 import click
+import numpy as np
 import torch
 import whisperx
 from whisperx.diarize import DiarizationPipeline
@@ -23,9 +24,14 @@ def transcribe(
     num_speakers: int | None = None,
     device: str = "cuda",
     batch_size: int = 16,
+    align: bool = True,
     log_fn: Callable[[str], None] = click.echo,
-) -> TranscriptResult:
-    """Run the full WhisperX pipeline: transcribe → align → diarize."""
+) -> tuple[TranscriptResult, "np.ndarray"]:
+    """Run the full WhisperX pipeline: transcribe → align → diarize.
+
+    Returns (TranscriptResult, audio_array) where audio_array is the 16kHz
+    mono numpy array that can be reused for speaker identification.
+    """
     start_time = time.time()
     validate_audio_file(audio_path)
 
@@ -44,32 +50,34 @@ def transcribe(
             wav_path.unlink(missing_ok=True)
 
     # Step 2: Transcribe with WhisperX
+    lang = None if language == "auto" else language
     log_fn(f"Loading Whisper model ({model_name}, {compute_type})...")
     model = whisperx.load_model(
         model_name,
         device=device,
         compute_type=compute_type,
+        language=lang,
     )
 
     log_fn("Transcribing...")
-    lang = None if language == "auto" else language
     result = model.transcribe(audio, batch_size=batch_size, language=lang)
     detected_language = result.get("language", "en")
     log_fn(f"Detected language: {detected_language}")
 
-    # Step 3: Align (word-level timestamps)
-    log_fn("Aligning timestamps...")
-    try:
-        align_model, align_metadata = whisperx.load_align_model(
-            language_code=detected_language, device=device
-        )
-        result = whisperx.align(
-            result["segments"], align_model, align_metadata, audio, device,
-            return_char_alignments=False,
-        )
-        del align_model
-    except Exception as e:
-        log_fn(f"Warning: Alignment failed ({e}), continuing without word-level timestamps.")
+    # Step 3: Align (word-level timestamps) — optional
+    if align:
+        log_fn("Aligning timestamps...")
+        try:
+            align_model, align_metadata = whisperx.load_align_model(
+                language_code=detected_language, device=device
+            )
+            result = whisperx.align(
+                result["segments"], align_model, align_metadata, audio, device,
+                return_char_alignments=False,
+            )
+            del align_model
+        except Exception as e:
+            log_fn(f"Warning: Alignment failed ({e}), continuing without word-level timestamps.")
 
     # Step 4: Unload Whisper to free VRAM
     del model
@@ -118,7 +126,7 @@ def transcribe(
         processing_time=processing_time,
         audio_file=str(audio_path.name),
         date=datetime.now(),
-    )
+    ), audio
 
 
 def _build_segments(raw_segments: list[dict]) -> list[Segment]:

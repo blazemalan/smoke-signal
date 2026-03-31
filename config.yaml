@@ -1,7 +1,9 @@
 defaults:
   model: large-v3-turbo
-  language: auto
+  language: en
   compute_type: float16
+  batch_size: 16
+  align: false
   output_dir: ./transcripts
 
 profiles:

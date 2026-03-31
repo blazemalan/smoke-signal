@@ -19,6 +19,7 @@ def identify_speakers(
     profiles_dir: Path,
     hf_token: str,
     device: str = "cuda",
+    audio_array: np.ndarray | None = None,
 ) -> TranscriptResult:
     """Replace generic speaker labels (SPEAKER_00, etc.) with enrolled names."""
     profile_embeddings = load_all_embeddings(profiles_dir)
@@ -30,7 +31,7 @@ def identify_speakers(
 
     # Extract embeddings for each diarized speaker from the audio
     speaker_embeddings = _extract_speaker_embeddings(
-        result, audio_path, hf_token, device
+        result, audio_path, hf_token, device, audio_array=audio_array,
     )
 
     if not speaker_embeddings:
@@ -67,12 +68,31 @@ def _extract_speaker_embeddings(
     audio_path: Path,
     hf_token: str,
     device: str,
+    audio_array: np.ndarray | None = None,
 ) -> dict[str, np.ndarray]:
     """Extract a representative embedding for each diarized speaker."""
     from pyannote.audio import Model, Inference
-    from smoke_signal.audio import preprocess_audio
 
-    wav_path = preprocess_audio(audio_path)
+    # Reuse pre-loaded audio if available, otherwise preprocess from file
+    wav_path = None
+    if audio_array is not None:
+        # audio_array is 16kHz mono float32 from whisperx.load_audio()
+        waveform = torch.from_numpy(audio_array).unsqueeze(0)
+        sr = 16000
+    else:
+        from smoke_signal.audio import preprocess_audio
+        import soundfile as sf
+        wav_path = preprocess_audio(audio_path)
+        audio_data, sr = sf.read(str(wav_path), dtype="float32")
+        waveform = torch.from_numpy(audio_data)
+        if waveform.ndim == 1:
+            waveform = waveform.unsqueeze(0)
+        else:
+            waveform = waveform.T
+        if sr != 16000:
+            import torchaudio
+            waveform = torchaudio.functional.resample(waveform, sr, 16000)
+            sr = 16000
 
     try:
         model = Model.from_pretrained(
@@ -87,18 +107,6 @@ def _extract_speaker_embeddings(
                 speaker_segments.setdefault(seg.speaker, []).append((seg.start, seg.end))
 
         speaker_embeddings = {}
-        import soundfile as sf
-
-        audio_data, sr = sf.read(str(wav_path), dtype="float32")
-        waveform = torch.from_numpy(audio_data)
-        if waveform.ndim == 1:
-            waveform = waveform.unsqueeze(0)
-        else:
-            waveform = waveform.T  # soundfile returns (samples, channels), we need (channels, samples)
-        if sr != 16000:
-            import torchaudio
-            waveform = torchaudio.functional.resample(waveform, sr, 16000)
-            sr = 16000
 
         for speaker, time_ranges in speaker_segments.items():
             # Collect audio chunks for this speaker
@@ -141,7 +149,8 @@ def _extract_speaker_embeddings(
 
         return speaker_embeddings
     finally:
-        wav_path.unlink(missing_ok=True)
+        if wav_path is not None:
+            wav_path.unlink(missing_ok=True)
         model = None
         inference = None
         torch.cuda.empty_cache()

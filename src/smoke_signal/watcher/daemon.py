@@ -5,7 +5,15 @@ import logging.handlers
 import signal
 import threading
 import time
+import warnings
 from pathlib import Path
+
+# Suppress noisy third-party warnings
+warnings.filterwarnings("ignore", message=".*automatically upgraded your loaded checkpoint.*")
+warnings.filterwarnings("ignore", message=".*was deprecated, redirecting.*")
+warnings.filterwarnings("ignore", message=".*pkg_resources is deprecated.*")
+warnings.filterwarnings("ignore", message=".*multiple.*ModelCheckpoint.*")
+warnings.filterwarnings("ignore", message=".*not in the model state dict.*")
 
 from smoke_signal.config import (
     DEFAULT_DATA_DIR,

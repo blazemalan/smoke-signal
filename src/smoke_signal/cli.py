@@ -34,7 +34,8 @@ def main():
 @click.option("--profile", "-p", default=None, help="Named config profile (therapy, work, etc.)")
 @click.option("--vault", is_flag=True, default=False, help="Output in vault meeting-note format")
 @click.option("--batch-size", type=int, default=16, help="Whisper batch size (lower = less VRAM)")
-def transcribe(audio_file, model, language, speakers, identify, output, compute_type, profile, vault, batch_size):
+@click.option("--no-align", is_flag=True, default=False, help="Skip word-level alignment (faster)")
+def transcribe(audio_file, model, language, speakers, identify, output, compute_type, profile, vault, batch_size, no_align):
     """Transcribe an audio file with speaker diarization."""
     from smoke_signal.gpu import check_gpu, check_vram_sufficient
     from smoke_signal.output.markdown import format_transcript, get_output_path
@@ -70,8 +71,13 @@ def transcribe(audio_file, model, language, speakers, identify, output, compute_
 
     device = gpu_info["device"]
 
+    # Resolve align: CLI flag overrides, then profile, then default true
+    align = not no_align
+    if not no_align:
+        align = prof.get("align", True)
+
     # Run transcription
-    result = run_transcribe(
+    result, audio_array = run_transcribe(
         audio_path=audio_file,
         model_name=model,
         compute_type=compute_type,
@@ -79,6 +85,7 @@ def transcribe(audio_file, model, language, speakers, identify, output, compute_
         num_speakers=speakers,
         device=device,
         batch_size=batch_size,
+        align=align,
     )
 
     # Speaker identification
@@ -87,6 +94,7 @@ def transcribe(audio_file, model, language, speakers, identify, output, compute_
         hf_token = get_hf_token()
         result = identify_speakers(
             result, audio_file, DEFAULT_PROFILES_DIR, hf_token, device,
+            audio_array=audio_array,
         )
 
     # Format and write output

@@ -38,8 +38,11 @@ def run_job(job: dict, db_path: Path) -> None:
 
     model = prof.get("model", "large-v3")
     compute_type = prof.get("compute_type", "float16")
+    language = prof.get("language", "en")
     num_speakers = prof.get("speakers")
     identify = prof.get("identify", False)
+    align = prof.get("align", True)
+    batch_size = prof.get("batch_size", 16)
 
     # GPU check
     gpu_info = check_gpu()
@@ -49,14 +52,15 @@ def run_job(job: dict, db_path: Path) -> None:
         logger.warning("No GPU available, transcription will be slow")
 
     # Run transcription
-    result = transcribe(
+    result, audio_array = transcribe(
         audio_path=file_path,
         model_name=model,
         compute_type=compute_type,
-        language=None,
+        language=language,
         num_speakers=num_speakers,
         device=device,
-        batch_size=16,
+        batch_size=batch_size,
+        align=align,
         log_fn=logger.info,
     )
 
@@ -66,6 +70,7 @@ def run_job(job: dict, db_path: Path) -> None:
         hf_token = get_hf_token()
         result = identify_speakers(
             result, file_path, DEFAULT_PROFILES_DIR, hf_token, device,
+            audio_array=audio_array,
         )
 
     # Format and write output
