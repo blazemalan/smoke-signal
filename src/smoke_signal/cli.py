@@ -150,7 +150,7 @@ def profiles_list():
     profs = list_profiles(DEFAULT_PROFILES_DIR)
     if not profs:
         click.echo("No speaker profiles found.")
-        click.echo(f"Enroll a speaker: scribe enroll <name> <audio_file>")
+        click.echo(f"Enroll a speaker: smoke-signal enroll <name> <audio_file>")
         return
 
     click.echo(f"{'Name':<15} {'Samples':<10} {'Created':<12} {'Updated':<12}")
@@ -317,7 +317,7 @@ def status():
     from smoke_signal.watcher.state import get_held, get_pending, get_recent_jobs, init_db
 
     if not DEFAULT_DB_PATH.exists():
-        click.echo("Watcher has not been run yet. Start with: scribe watch")
+        click.echo("Watcher has not been run yet. Start with: smoke-signal watch")
         return
 
     init_db(DEFAULT_DB_PATH)

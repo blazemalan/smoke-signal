@@ -38,7 +38,7 @@ def notify_held(file_path: Path, recording_date: str) -> None:
     body = (
         f"{file_path.name} ({recording_date})\n"
         f"No auto-classification match.\n"
-        f"Run: scribe classify \"{file_path}\" \"<description>\""
+        f"Run: smoke-signal classify \"{file_path}\" \"<description>\""
     )
     _send_toast(title, body)
 

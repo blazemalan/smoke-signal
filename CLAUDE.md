@@ -2,7 +2,7 @@
 
 ## What This Is
 
-Scribe is a local-first Python CLI tool for audio transcription with speaker diarization. It uses WhisperX (faster-whisper + pyannote.audio) to transcribe audio files and identify who said what.
+Smoke Signal is a local-first Python CLI tool for audio transcription with speaker diarization. It uses WhisperX (faster-whisper + pyannote.audio) to transcribe audio files and identify who said what.
 
 ## Tech Stack
 
@@ -22,15 +22,15 @@ Scribe is a local-first Python CLI tool for audio transcription with speaker dia
 
 ## Project Structure
 
-- `src/scribe/cli.py` — Click CLI entry point
-- `src/scribe/config.py` — Config loading (.env + config.yaml)
-- `src/scribe/gpu.py` — GPU detection and VRAM checks
-- `src/scribe/audio.py` — ffmpeg preprocessing
-- `src/scribe/models.py` — Pydantic data models
-- `src/scribe/pipeline/local.py` — WhisperX orchestration
-- `src/scribe/enrollment/manager.py` — Speaker profile CRUD
-- `src/scribe/enrollment/matcher.py` — Cosine similarity matching
-- `src/scribe/output/markdown.py` — Markdown + YAML frontmatter output
+- `src/smoke_signal/cli.py` — Click CLI entry point
+- `src/smoke_signal/config.py` — Config loading (.env + config.yaml)
+- `src/smoke_signal/gpu.py` — GPU detection and VRAM checks
+- `src/smoke_signal/audio.py` — ffmpeg preprocessing
+- `src/smoke_signal/models.py` — Pydantic data models
+- `src/smoke_signal/pipeline/local.py` — WhisperX orchestration
+- `src/smoke_signal/enrollment/manager.py` — Speaker profile CRUD
+- `src/smoke_signal/enrollment/matcher.py` — Cosine similarity matching
+- `src/smoke_signal/output/markdown.py` — Markdown + YAML frontmatter output
 
 ## Key Decisions
 
