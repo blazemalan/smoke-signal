@@ -37,21 +37,35 @@ Smoke Signal uses [WhisperX](https://github.com/m-bain/whisperX) for transcripti
 
 ## Installation
 
-### 1. Clone the repo
+### Quick Install (recommended)
+
+1. Download or clone the repo:
+   ```bash
+   git clone https://github.com/blazemalan/smoke-signal.git
+   ```
+2. Double-click `installer/Install-SmokeSignal.bat`
+3. The installer will set up Python, PyTorch, CUDA, ffmpeg, and create a desktop shortcut
+4. Launch Smoke Signal from your desktop and follow the setup wizard
+
+### Manual Install
+
+If you prefer to set things up yourself:
+
+#### 1. Clone the repo
 
 ```bash
-git clone https://github.com/YOUR_USERNAME/smoke-signal.git
+git clone https://github.com/blazemalan/smoke-signal.git
 cd smoke-signal
 ```
 
-### 2. Create a conda environment
+#### 2. Create a conda environment
 
 ```bash
 conda create -n smoke-signal python=3.12 -y
 conda activate smoke-signal
 ```
 
-### 3. Install PyTorch with CUDA
+#### 3. Install PyTorch with CUDA
 
 Visit https://pytorch.org/get-started/locally/ and select your CUDA version. Example for CUDA 12.8:
 
@@ -59,7 +73,7 @@ Visit https://pytorch.org/get-started/locally/ and select your CUDA version. Exa
 pip install torch torchaudio --index-url https://download.pytorch.org/whl/cu128
 ```
 
-### 4. Install Smoke Signal
+#### 4. Install Smoke Signal
 
 ```bash
 # Core transcription only
@@ -69,15 +83,11 @@ pip install -e .
 pip install -e ".[watch]"
 ```
 
-### 5. Set up configuration
+#### 5. Set up configuration
 
-```bash
-# Copy the example configs
-cp .env.example .env
-cp config.yaml.example config.yaml
-```
+Smoke Signal stores its config in `%LOCALAPPDATA%\SmokeSignal` (Windows) or `~/Library/Application Support/SmokeSignal` (Mac). A default `config.yaml` is created on first run.
 
-Edit `.env` and add your HuggingFace token:
+Create a `.env` file in that directory with your HuggingFace token:
 
 ```
 HF_TOKEN=hf_your_token_here
@@ -90,7 +100,9 @@ watcher:
   watch_dir: "C:\\Users\\you\\path\\to\\recordings"
 ```
 
-### 6. Verify the installation
+For development, set `SMOKE_SIGNAL_DATA_DIR` to use a custom data directory (e.g., the project root).
+
+#### 6. Verify the installation
 
 ```bash
 smoke-signal verify
