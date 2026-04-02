@@ -36,3 +36,9 @@ tests/fixtures/*.mp3
 # Watcher state and logs
 data/
 logs/
+
+# User config (contains machine-specific paths)
+config.yaml
+
+# User batch scripts
+scripts/*.bat

@@ -160,6 +160,11 @@ def run_daemon(
         min_file_size=min_size,
     )
 
+    if not watch_dir.exists():
+        logger.error(f"Watch directory does not exist: {watch_dir}")
+        logger.error("Check the watch_dir path in config.yaml.")
+        return
+
     # First-run: seed existing files as "seen"
     if not DEFAULT_DB_PATH.exists() or _is_first_run(db_path):
         logger.info("First run detected — marking existing files as seen")
@@ -172,11 +177,6 @@ def run_daemon(
     new_files = scan_existing(watch_dir, db_path, min_file_size=min_size)
     for fp in new_files:
         _on_file_ready(fp, db_path, queue, watcher_config)
-
-    if not watch_dir.exists():
-        logger.error(f"Watch directory does not exist: {watch_dir}")
-        logger.error("Is iCloud Drive installed and signed in?")
-        return
 
     # Start observer
     observer = start_observer(watch_dir, handler)

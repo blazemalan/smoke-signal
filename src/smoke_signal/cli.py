@@ -1,4 +1,4 @@
-"""Scribe CLI — local-first audio transcription with speaker diarization."""
+"""Smoke Signal CLI — local-first audio transcription with speaker diarization."""
 
 import warnings
 warnings.filterwarnings("ignore", category=UserWarning, module="pyannote")
@@ -102,10 +102,11 @@ def transcribe(audio_file, model, language, speakers, identify, output, compute_
 
     output_dir = DEFAULT_TRANSCRIPTS_DIR
     if vault:
-        # Try to find celerity-notes meeting-notes dir
-        vault_path = Path.home() / "OneDrive" / "Documents" / "celerity-notes" / "meeting-notes"
-        if vault_path.exists():
-            output_dir = vault_path
+        vault_dir = prof.get("vault_dir") or config.get("defaults", {}).get("vault_dir")
+        if vault_dir:
+            vault_path = Path(vault_dir).expanduser()
+            if vault_path.exists():
+                output_dir = vault_path
 
     output_dir.mkdir(parents=True, exist_ok=True)
 

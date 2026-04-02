@@ -1,0 +1,39 @@
+# Smoke Signal configuration
+# Copy this file to config.yaml and customize for your setup:
+#   cp config.yaml.example config.yaml
+
+defaults:
+  model: large-v3-turbo       # Whisper model: large-v3, large-v3-turbo, medium, small, base, tiny
+  language: en                 # Language code, or "auto" for detection
+  compute_type: float16        # float16 (recommended for NVIDIA), float32 (CPU fallback)
+  batch_size: 16               # Lower = less VRAM usage
+  align: false                 # Word-level alignment (slower but more precise timestamps)
+  output_dir: ./transcripts
+
+profiles:
+  # Named presets — use with: smoke-signal transcribe --profile work
+  default:
+    speakers: 4
+    identify: true
+    model: large-v3-turbo
+  small-group:
+    speakers: 2
+    identify: true
+    model: large-v3
+  # vault_dir: ~/path/to/obsidian-vault/meeting-notes  # Optional: for --vault output
+
+watcher:
+  # REQUIRED: folder where your voice recordings appear (e.g., synced from phone)
+  watch_dir: ""
+  scan_days: 7
+  stability_seconds: 30        # Wait this long after file stops changing before processing
+  min_file_size_bytes: 50000   # Ignore files smaller than this (likely not real recordings)
+  enable_notifications: true
+
+  # Categories — files with matching keywords get auto-classified.
+  # Unmatched files are held for manual classification via: smoke-signal classify
+  categories:
+    meeting: ["meeting", "sync", "standup", "1on1", "check-in", "call"]
+    interview: ["interview", "candidate"]
+    lecture: ["lecture", "class", "course", "seminar"]
+    personal: ["journal", "note", "memo", "thought", "voice"]

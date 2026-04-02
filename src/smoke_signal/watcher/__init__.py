@@ -1,1 +1,1 @@
-"""Scribe Watcher — auto-ingest audio from iCloud Drive."""
+"""Smoke Signal Watcher — auto-ingest audio from a watched directory."""

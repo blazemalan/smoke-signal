@@ -18,6 +18,9 @@ dependencies = [
 [project.scripts]
 smoke-signal = "smoke_signal.cli:main"
 
+[project.gui-scripts]
+smoke-signal-tray = "smoke_signal.tray_entry:main"
+
 [build-system]
 requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
