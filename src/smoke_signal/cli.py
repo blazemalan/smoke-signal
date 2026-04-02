@@ -372,5 +372,17 @@ def status():
             click.echo(f"  {status_icon} {job['status']:<9} {name:<30} {mtype:<12} {ptime}")
 
 
+@main.command()
+def setup():
+    """Run the first-time setup wizard."""
+    from smoke_signal.setup_wizard import run_wizard
+
+    completed = run_wizard()
+    if completed:
+        click.echo("Setup complete!")
+    else:
+        click.echo("Setup cancelled.")
+
+
 if __name__ == "__main__":
     main()

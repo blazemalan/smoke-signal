@@ -12,10 +12,23 @@ warnings.filterwarnings("ignore", category=UserWarning, module="pyannote")
 
 def main():
     try:
-        from smoke_signal.config import DEFAULT_LOGS_DIR, load_env
-        from smoke_signal.watcher.daemon import run_daemon
+        from smoke_signal.config import DEFAULT_LOGS_DIR, is_setup_complete, load_env
 
         load_env()
+
+        # Show setup wizard on first run if config is incomplete
+        if not is_setup_complete():
+            from smoke_signal.setup_wizard import run_wizard
+
+            completed = run_wizard()
+            if not completed:
+                return
+
+            # Reload env after wizard may have written .env
+            load_env()
+
+        from smoke_signal.watcher.daemon import run_daemon
+
         run_daemon(use_tray=True)
     except Exception:
         # With pythonw.exe, stderr is detached — write crashes to a fallback log

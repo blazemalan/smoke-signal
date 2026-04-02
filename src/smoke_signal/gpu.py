@@ -1,5 +1,20 @@
 """GPU detection and VRAM checks."""
 
+import os
+import platform
+import sys
+
+# On Windows, add nvidia DLL directories to PATH before importing torch.
+# pip-installed PyTorch puts cuDNN/cuBLAS DLLs in site-packages/nvidia/*/bin/
+# but Windows doesn't know to look there unless we add them.
+if platform.system() == "Windows":
+    _site_packages = os.path.join(sys.prefix, "Lib", "site-packages", "nvidia")
+    if os.path.isdir(_site_packages):
+        for _subdir in os.listdir(_site_packages):
+            _bin = os.path.join(_site_packages, _subdir, "bin")
+            if os.path.isdir(_bin) and _bin not in os.environ.get("PATH", ""):
+                os.environ["PATH"] = _bin + os.pathsep + os.environ.get("PATH", "")
+
 import torch
 
 

@@ -97,3 +97,21 @@ def get_profile(config: dict, profile_name: str) -> dict:
 
 def get_watcher_config(config: dict) -> dict:
     return config.get("watcher", {})
+
+
+def save_config(config: dict, config_path: Path | None = None) -> None:
+    """Write config dict back to config.yaml."""
+    path = config_path or DEFAULT_CONFIG_PATH
+    with open(path, "w", encoding="utf-8") as f:
+        yaml.dump(config, f, default_flow_style=False, sort_keys=False)
+
+
+def is_setup_complete() -> bool:
+    """Check if the minimum setup has been done (HF token + config exists)."""
+    load_env()
+    token = os.getenv("HF_TOKEN", "")
+    if not token:
+        return False
+    if not DEFAULT_CONFIG_PATH.exists():
+        return False
+    return True
