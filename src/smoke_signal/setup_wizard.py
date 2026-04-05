@@ -138,11 +138,29 @@ class SetupWizard:
     """Multi-step setup wizard with cinder.works aesthetic."""
 
     def __init__(self):
+        try:
+            import ctypes
+            ctypes.windll.shcore.SetProcessDpiAwareness(2)
+        except Exception:
+            pass
+
         self.root = tk.Tk()
         self.root.title("Smoke Signal")
         self.root.geometry(f"{WINDOW_W}x{WINDOW_H}")
         self.root.resizable(False, False)
         self.root.configure(bg=BG_DEEP)
+
+        try:
+            import ctypes
+            hwnd = ctypes.windll.user32.GetParent(self.root.winfo_id())
+            DWMWA_USE_IMMERSIVE_DARK_MODE = 20
+            value = ctypes.c_int(1)
+            ctypes.windll.dwmapi.DwmSetWindowAttribute(
+                hwnd, DWMWA_USE_IMMERSIVE_DARK_MODE,
+                ctypes.byref(value), ctypes.sizeof(value),
+            )
+        except Exception:
+            pass
 
         # Center on screen
         self.root.update_idletasks()

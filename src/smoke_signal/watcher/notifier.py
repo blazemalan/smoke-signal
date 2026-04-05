@@ -1,12 +1,12 @@
-"""Windows toast notifications for the Scribe watcher."""
+"""Windows toast notifications for the Smoke Signal watcher."""
 
 import logging
-from datetime import datetime
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
 APP_ID = "Smoke Signal"
+_ICON_PATH = str(Path(__file__).resolve().parents[3] / "assets" / "smoke-signal.ico")
 
 
 def notify_success(
@@ -16,13 +16,14 @@ def notify_success(
     duration_str: str,
 ) -> None:
     """Send a toast notification on successful transcription."""
-    title = f"Transcription complete"
+    title = "Transcription complete"
     body = (
         f"{meeting_type.title()} recording ({recording_date})\n"
         f"Duration: {duration_str}\n"
         f"Saved to: {output_path.name}"
     )
-    _send_toast(title, body)
+    file_uri = output_path.resolve().as_uri()
+    _send_toast(title, body, actions=[("Open Transcript", file_uri)])
 
 
 def notify_error(file_path: Path, error_message: str) -> None:
@@ -38,7 +39,7 @@ def notify_held(file_path: Path, recording_date: str) -> None:
     body = (
         f"{file_path.name} ({recording_date})\n"
         f"No auto-classification match.\n"
-        f"Run: smoke-signal classify \"{file_path}\" \"<description>\""
+        f"Open Smoke Signal to classify this recording."
     )
     _send_toast(title, body)
 
@@ -53,16 +54,30 @@ def notify_queue(queue_depth: int, current_file: str | None = None) -> None:
     _send_toast(title, body)
 
 
-def _send_toast(title: str, body: str) -> None:
-    """Send a Windows toast notification."""
+def _send_toast(
+    title: str,
+    body: str,
+    actions: list[tuple[str, str]] | None = None,
+) -> None:
+    """Send a Windows toast notification.
+
+    Args:
+        title: Notification heading.
+        body: Notification message text.
+        actions: Optional list of (label, launch_uri) button pairs.
+    """
     try:
         from winotify import Notification
 
+        icon = _ICON_PATH if Path(_ICON_PATH).exists() else ""
         toast = Notification(
             app_id=APP_ID,
             title=title,
             msg=body,
+            icon=icon,
         )
+        for label, launch_uri in actions or []:
+            toast.add_actions(label=label, launch=launch_uri)
         toast.show()
         logger.debug(f"Toast sent: {title}")
     except Exception as e:

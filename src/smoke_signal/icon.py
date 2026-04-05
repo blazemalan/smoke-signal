@@ -1,157 +1,185 @@
 """Smoke Signal app icon generator.
 
-Pixel art campfire with big puffs of smoke rising.
+Modern app icon: dark rounded square with a smooth gradient flame
+and soft smoke. Designed to match the quality of icons like Obsidian, CapCut.
 """
 
+import math
 from pathlib import Path
 
-from PIL import Image
-
-
-# Palette
-TRANSPARENT = (0, 0, 0, 0)
-WOOD_DARK = (80, 45, 20, 255)
-WOOD_MID = (120, 65, 30, 255)
-WOOD_LIGHT = (155, 90, 45, 255)
-EMBER = (200, 60, 20, 255)
-FIRE_OUTER = (212, 69, 26, 255)      # brand orange #d4451a
-FIRE_MID = (255, 140, 50, 255)
-FIRE_INNER = (255, 210, 80, 255)
-FIRE_CORE = (255, 245, 200, 255)
-SMOKE_1 = (180, 180, 185, 200)
-SMOKE_2 = (155, 155, 162, 170)
-SMOKE_3 = (130, 130, 138, 140)
-SMOKE_4 = (110, 110, 118, 100)
-ASH = (90, 85, 80, 255)
+from PIL import Image, ImageDraw, ImageFilter
 
 
 def create_app_icon(size: int = 256) -> Image.Image:
-    """Generate a pixel art campfire icon, then scale to requested size."""
-    # Design on a 32x32 pixel grid
-    grid = 32
-    img = Image.new("RGBA", (grid, grid), TRANSPARENT)
+    """Generate a modern app icon with smooth flame on dark background."""
+    # Render at 4x for quality anti-aliasing
+    s = size * 4
+    img = Image.new("RGBA", (s, s), (0, 0, 0, 0))
+    draw = ImageDraw.Draw(img)
 
-    # Draw pixel by pixel
-    def px(x, y, color):
-        if 0 <= x < grid and 0 <= y < grid:
-            img.putpixel((x, y), color)
+    # === Rounded square background ===
+    corner = int(s * 0.22)  # iOS-style roundrect
+    _rounded_rect(draw, 0, 0, s - 1, s - 1, corner, fill=(22, 22, 22, 255))
 
-    def hline(x1, x2, y, color):
-        for x in range(x1, x2 + 1):
-            px(x, y, color)
+    # Subtle inner gradient (slightly lighter at top)
+    for y in range(s):
+        t = y / s
+        overlay_alpha = int(12 * (1 - t))
+        if overlay_alpha > 0:
+            draw.line([(0, y), (s, y)], fill=(255, 255, 255, overlay_alpha))
 
-    # === SMOKE PUFFS (top) ===
+    cx = s // 2
 
-    # Top puff (smallest, faintest)
-    for x, y in [(14, 1), (15, 1), (16, 1), (17, 1),
-                 (13, 2), (14, 2), (15, 2), (16, 2), (17, 2), (18, 2),
-                 (14, 3), (15, 3), (16, 3), (17, 3)]:
-        px(x, y, SMOKE_4)
+    # === Soft background glow (orange, behind everything) ===
+    glow = Image.new("RGBA", (s, s), (0, 0, 0, 0))
+    glow_draw = ImageDraw.Draw(glow)
+    glow_cx = cx
+    glow_cy = int(s * 0.55)
+    glow_r = int(s * 0.30)
+    for i in range(glow_r, 0, -1):
+        t = i / glow_r
+        a = int(40 * (1 - t) * (1 - t))
+        glow_draw.ellipse(
+            [glow_cx - i, glow_cy - int(i * 0.7), glow_cx + i, glow_cy + int(i * 0.7)],
+            fill=(212, 69, 26, a),
+        )
+    glow = glow.filter(ImageFilter.GaussianBlur(radius=int(s * 0.04)))
+    img = Image.alpha_composite(img, glow)
+    draw = ImageDraw.Draw(img)
 
-    # Upper-mid puff
-    for x, y in [(13, 4), (14, 4), (15, 4), (16, 4),
-                 (12, 5), (13, 5), (14, 5), (15, 5), (16, 5), (17, 5),
-                 (11, 6), (12, 6), (13, 6), (14, 6), (15, 6), (16, 6), (17, 6), (18, 6),
-                 (12, 7), (13, 7), (14, 7), (15, 7), (16, 7), (17, 7),
-                 (13, 8), (14, 8), (15, 8), (16, 8)]:
-        px(x, y, SMOKE_3)
+    # === Smoke ===
+    smoke = Image.new("RGBA", (s, s), (0, 0, 0, 0))
+    smoke_draw = ImageDraw.Draw(smoke)
 
-    # Mid puff (bigger)
-    for x, y in [(14, 9), (15, 9), (16, 9), (17, 9), (18, 9),
-                 (13, 10), (14, 10), (15, 10), (16, 10), (17, 10), (18, 10), (19, 10),
-                 (12, 11), (13, 11), (14, 11), (15, 11), (16, 11), (17, 11), (18, 11), (19, 11), (20, 11),
-                 (12, 12), (13, 12), (14, 12), (15, 12), (16, 12), (17, 12), (18, 12), (19, 12),
-                 (13, 13), (14, 13), (15, 13), (16, 13), (17, 13), (18, 13)]:
-        px(x, y, SMOKE_2)
+    smoke_base_y = int(s * 0.38)
+    puffs = [
+        (cx + int(s * 0.01), int(s * 0.10), int(s * 0.08), 35),
+        (cx - int(s * 0.02), int(s * 0.17), int(s * 0.10), 45),
+        (cx + int(s * 0.01), int(s * 0.26), int(s * 0.12), 55),
+        (cx - int(s * 0.01), int(s * 0.34), int(s * 0.13), 60),
+    ]
+    for px, py, pr, alpha in puffs:
+        smoke_draw.ellipse(
+            [px - pr, py - pr, px + pr, py + pr],
+            fill=(200, 200, 205, alpha),
+        )
 
-    # Lower puff (largest, closest to fire, brightest)
-    for x, y in [(14, 14), (15, 14), (16, 14), (17, 14),
-                 (12, 15), (13, 15), (14, 15), (15, 15), (16, 15), (17, 15), (18, 15), (19, 15),
-                 (11, 16), (12, 16), (13, 16), (14, 16), (15, 16), (16, 16), (17, 16), (18, 16), (19, 16), (20, 16),
-                 (11, 17), (12, 17), (13, 17), (14, 17), (15, 17), (16, 17), (17, 17), (18, 17), (19, 17), (20, 17),
-                 (12, 18), (13, 18), (14, 18), (15, 18), (16, 18), (17, 18), (18, 18), (19, 18),
-                 (13, 19), (14, 19), (15, 19), (16, 19), (17, 19), (18, 19)]:
-        px(x, y, SMOKE_1)
+    smoke = smoke.filter(ImageFilter.GaussianBlur(radius=int(s * 0.035)))
+    img = Image.alpha_composite(img, smoke)
+    draw = ImageDraw.Draw(img)
 
-    # === FIRE ===
+    # === Flame ===
+    flame = Image.new("RGBA", (s, s), (0, 0, 0, 0))
+    flame_draw = ImageDraw.Draw(flame)
 
-    # Flame tip
-    px(15, 17, FIRE_OUTER)
-    px(16, 17, FIRE_OUTER)
+    flame_bottom = int(s * 0.78)
+    flame_top = int(s * 0.30)
+    flame_w = int(s * 0.20)
 
-    # Flame upper
-    hline(14, 17, 18, FIRE_OUTER)
-    hline(14, 17, 19, FIRE_MID)
-    px(15, 19, FIRE_INNER)
-    px(16, 19, FIRE_INNER)
+    # Outer flame — brand orange
+    _draw_smooth_flame(flame_draw, cx, flame_bottom, flame_top, flame_w,
+                       (212, 69, 26, 255))
 
-    # Flame body
-    hline(13, 18, 20, FIRE_OUTER)
-    hline(14, 17, 20, FIRE_MID)
-    px(15, 20, FIRE_INNER)
-    px(16, 20, FIRE_INNER)
+    # Mid flame
+    _draw_smooth_flame(flame_draw, cx, flame_bottom - int(s * 0.02),
+                       flame_top + int(s * 0.08), int(flame_w * 0.68),
+                       (255, 140, 50, 255))
 
-    hline(12, 19, 21, FIRE_OUTER)
-    hline(13, 18, 21, FIRE_MID)
-    hline(14, 17, 21, FIRE_INNER)
-    px(15, 21, FIRE_CORE)
-    px(16, 21, FIRE_CORE)
+    # Inner flame
+    _draw_smooth_flame(flame_draw, cx, flame_bottom - int(s * 0.04),
+                       flame_top + int(s * 0.16), int(flame_w * 0.40),
+                       (255, 210, 80, 255))
 
-    # Flame base (wider)
-    hline(11, 20, 22, FIRE_OUTER)
-    hline(12, 19, 22, FIRE_MID)
-    hline(14, 17, 22, FIRE_INNER)
+    # Core
+    _draw_smooth_flame(flame_draw, cx, flame_bottom - int(s * 0.06),
+                       flame_top + int(s * 0.24), int(flame_w * 0.18),
+                       (255, 245, 215, 230))
 
-    hline(11, 20, 23, EMBER)
-    hline(12, 19, 23, FIRE_OUTER)
-    hline(14, 17, 23, FIRE_MID)
+    # Slight flame glow
+    flame_glow = flame.copy().filter(ImageFilter.GaussianBlur(radius=int(s * 0.015)))
+    img = Image.alpha_composite(img, flame_glow)
+    img = Image.alpha_composite(img, flame)
 
-    # === EMBERS / ASH LINE ===
-    hline(10, 21, 24, ASH)
-    for x in [11, 13, 16, 19]:
-        px(x, 24, EMBER)
+    # === Wood logs ===
+    draw = ImageDraw.Draw(img)
+    log_y = int(s * 0.78)
+    log_h = int(s * 0.035)
 
-    # === WOOD LOGS ===
+    # Left log
+    _draw_log(draw, cx - int(s * 0.22), log_y + int(s * 0.02),
+              cx + int(s * 0.05), log_y + log_h + int(s * 0.04),
+              angle=-12, s=s)
+    # Right log
+    _draw_log(draw, cx - int(s * 0.05), log_y + int(s * 0.02),
+              cx + int(s * 0.22), log_y + log_h + int(s * 0.04),
+              angle=12, s=s)
 
-    # Left log (diagonal \)
-    for i in range(8):
-        x = 8 + i
-        y = 25 + (i // 2)
-        px(x, y, WOOD_DARK)
-        px(x, y - 1, WOOD_MID) if y > 25 else None
-        if i % 3 == 0:
-            px(x, y, WOOD_LIGHT)
-
-    # Right log (diagonal /)
-    for i in range(8):
-        x = 23 - i
-        y = 25 + (i // 2)
-        px(x, y, WOOD_DARK)
-        px(x, y - 1, WOOD_MID) if y > 25 else None
-        if i % 3 == 1:
-            px(x, y, WOOD_LIGHT)
-
-    # Cross log (horizontal)
-    hline(10, 21, 26, WOOD_DARK)
-    hline(11, 20, 27, WOOD_MID)
-    for x in [12, 15, 18]:
-        px(x, 26, WOOD_LIGHT)
-    for x in [13, 17]:
-        px(x, 27, WOOD_LIGHT)
-
-    # Bottom detail logs
-    hline(9, 22, 28, WOOD_DARK)
-    for x in [10, 14, 19, 21]:
-        px(x, 28, WOOD_MID)
-
-    # Ground stones
-    for x, y in [(8, 29), (9, 29), (22, 29), (23, 29),
-                 (11, 29), (12, 29), (19, 29), (20, 29)]:
-        px(x, y, ASH)
-
-    # Scale up with nearest-neighbor to preserve pixel art crispness
-    img = img.resize((size, size), Image.NEAREST)
+    # Downsample with high-quality resampling
+    img = img.resize((size, size), Image.LANCZOS)
     return img
+
+
+def _rounded_rect(draw, x1, y1, x2, y2, r, fill):
+    """Draw a rounded rectangle."""
+    draw.rectangle([x1 + r, y1, x2 - r, y2], fill=fill)
+    draw.rectangle([x1, y1 + r, x2, y2 - r], fill=fill)
+    draw.pieslice([x1, y1, x1 + 2 * r, y1 + 2 * r], 180, 270, fill=fill)
+    draw.pieslice([x2 - 2 * r, y1, x2, y1 + 2 * r], 270, 360, fill=fill)
+    draw.pieslice([x1, y2 - 2 * r, x1 + 2 * r, y2], 90, 180, fill=fill)
+    draw.pieslice([x2 - 2 * r, y2 - 2 * r, x2, y2], 0, 90, fill=fill)
+
+
+def _draw_smooth_flame(draw, cx, bottom_y, top_y, half_width, color):
+    """Draw a smooth flame shape with organic curves."""
+    points = []
+    steps = 60
+
+    for i in range(steps + 1):
+        t = i / steps
+        y = bottom_y + (top_y - bottom_y) * t
+
+        # Organic width profile
+        base = 1 - t
+        belly = 0.12 * math.sin(t * math.pi * 0.85)
+        taper = 1 - t ** 0.65
+
+        w = half_width * taper * (base + belly)
+        w = max(w, 0)
+
+        wobble = math.sin(t * math.pi * 2.2) * half_width * 0.025
+        points.append((cx - w + wobble, y))
+
+    for i in range(steps, -1, -1):
+        t = i / steps
+        y = bottom_y + (top_y - bottom_y) * t
+
+        base = 1 - t
+        belly = 0.12 * math.sin(t * math.pi * 0.85)
+        taper = 1 - t ** 0.65
+
+        w = half_width * taper * (base + belly)
+        w = max(w, 0)
+
+        wobble = math.sin(t * math.pi * 2.2) * half_width * 0.025
+        points.append((cx + w - wobble, y))
+
+    if len(points) >= 3:
+        draw.polygon(points, fill=color)
+
+
+def _draw_log(draw, x1, y1, x2, y2, angle, s):
+    """Draw a simple wood log."""
+    draw.rounded_rectangle(
+        [x1, y1, x2, y2],
+        radius=int(s * 0.01),
+        fill=(90, 55, 30, 255),
+    )
+    # Highlight
+    draw.rounded_rectangle(
+        [x1 + 2, y1, x2 - 2, y1 + int(s * 0.008)],
+        radius=int(s * 0.005),
+        fill=(130, 80, 45, 255),
+    )
 
 
 def create_tray_icon(size: int = 64) -> Image.Image:
@@ -163,13 +191,12 @@ def save_ico(output_path: Path, sizes: list[int] | None = None) -> None:
     """Save a multi-size .ico file for Windows."""
     if sizes is None:
         sizes = [16, 24, 32, 48, 64, 128, 256]
-
     images = [create_app_icon(s) for s in sizes]
-    images[0].save(
-        str(output_path),
-        format="ICO",
+    # Save from the largest image, append the rest
+    images[-1].save(
+        str(output_path), format="ICO",
         sizes=[(s, s) for s in sizes],
-        append_images=images[1:],
+        append_images=images[:-1],
     )
 
 
@@ -177,11 +204,7 @@ def save_icns(output_path: Path) -> None:
     """Save an .icns file for macOS."""
     sizes = [16, 32, 64, 128, 256, 512, 1024]
     images = [create_app_icon(s) for s in sizes]
-    images[-1].save(
-        str(output_path),
-        format="ICNS",
-        append_images=images[:-1],
-    )
+    images[-1].save(str(output_path), format="ICNS", append_images=images[:-1])
 
 
 if __name__ == "__main__":

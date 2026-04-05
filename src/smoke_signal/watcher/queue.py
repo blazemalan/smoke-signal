@@ -6,6 +6,7 @@ import time
 from pathlib import Path
 from typing import Callable
 
+from smoke_signal.watcher.notifier import notify_error
 from smoke_signal.watcher.state import get_pending, update_status
 
 logger = logging.getLogger(__name__)
@@ -105,6 +106,7 @@ class ProcessingQueue:
                         "failed",
                         error_message=str(e)[:500],
                     )
+                    notify_error(Path(job["file_path"]), str(e))
                 finally:
                     self.gpu_lock.release()
                     self._current_file = None

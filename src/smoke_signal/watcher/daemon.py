@@ -28,7 +28,7 @@ from smoke_signal.watcher.monitor import (
     scan_existing,
     start_observer,
 )
-from smoke_signal.watcher.notifier import notify_held
+from smoke_signal.watcher.notifier import notify_error, notify_held
 from smoke_signal.watcher.queue import GpuLock, ProcessingQueue
 from smoke_signal.watcher.state import (
     init_db,
@@ -125,8 +125,11 @@ def run_daemon(
     if watch_dir is None:
         configured = watcher_config.get("watch_dir", "")
         if not configured:
-            print("Error: No watch_dir configured in config.yaml.")
-            print("Set it to the folder where your voice recordings sync.")
+            logger.error("No watch_dir configured in config.yaml.")
+            notify_error(
+                Path("config.yaml"),
+                "No watch folder configured. Open Smoke Signal settings to set a watch folder.",
+            )
             return
         watch_dir = Path(configured)
 
@@ -162,7 +165,10 @@ def run_daemon(
 
     if not watch_dir.exists():
         logger.error(f"Watch directory does not exist: {watch_dir}")
-        logger.error("Check the watch_dir path in config.yaml.")
+        notify_error(
+            Path(str(watch_dir)),
+            f"Watch folder not found: {watch_dir}\nOpen Smoke Signal settings to fix.",
+        )
         return
 
     # First-run: seed existing files as "seen"
@@ -200,6 +206,7 @@ def run_daemon(
     if use_tray:
         try:
             from smoke_signal.watcher.tray import SmokeSignalTray
+            from smoke_signal.watcher.dashboard import DashboardWindow
 
             def on_pause():
                 logger.info("Paused")
@@ -208,12 +215,19 @@ def run_daemon(
                 logger.info("Resumed")
                 queue.enqueue_wake()
 
+            dashboard = DashboardWindow(db_path, queue, on_pause, on_resume)
+            dashboard.start()
+
             def on_quit():
                 logger.info("Shutting down...")
+                dashboard.stop()
                 queue.stop()
                 observer.stop()
 
-            tray = SmokeSignalTray(db_path, on_pause, on_resume, on_quit)
+            tray = SmokeSignalTray(
+                db_path, on_pause, on_resume, on_quit,
+                on_open_dashboard=dashboard.request_show,
+            )
             tray.set_status("Watching")
             tray.run()  # blocks
         except ImportError:

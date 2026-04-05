@@ -1,7 +1,10 @@
 """System tray app for the Smoke Signal watcher."""
 
+from __future__ import annotations
+
 import logging
 from pathlib import Path
+from typing import Callable
 
 from PIL import Image, ImageDraw
 import pystray
@@ -18,20 +21,31 @@ class SmokeSignalTray:
     def __init__(
         self,
         db_path: Path,
-        on_pause: callable,
-        on_resume: callable,
-        on_quit: callable,
+        on_pause: Callable,
+        on_resume: Callable,
+        on_quit: Callable,
+        on_open_dashboard: Callable | None = None,
     ):
         self.db_path = db_path
         self.on_pause = on_pause
         self.on_resume = on_resume
         self.on_quit = on_quit
+        self.on_open_dashboard = on_open_dashboard
         self._paused = False
         self._status_text = "Idle"
         self._icon: pystray.Icon | None = None
 
+    def _open_dashboard(self, icon, item) -> None:
+        if self.on_open_dashboard:
+            self.on_open_dashboard()
+
     def _build_menu(self) -> pystray.Menu:
         return pystray.Menu(
+            pystray.MenuItem(
+                "Dashboard",
+                self._open_dashboard,
+                default=True,
+            ),
             pystray.MenuItem(
                 lambda _: f"Smoke Signal — {self._status_text}",
                 None,

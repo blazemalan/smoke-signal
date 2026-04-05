@@ -3,7 +3,7 @@
 
 $ErrorActionPreference = "Stop"
 
-$CONDA_ENV = "smoke-signal"
+$CONDA_ENV = "scribe"
 $PYTHON_VERSION = "3.12"
 $PROJECT_DIR = (Resolve-Path "$PSScriptRoot\..").Path
 $MINICONDA_URL = "https://repo.anaconda.com/miniconda/Miniconda3-latest-Windows-x86_64.exe"
@@ -232,9 +232,11 @@ try {
         $desktopPath = [Environment]::GetFolderPath("Desktop")
         $shortcutPath = Join-Path $desktopPath "Smoke Signal.lnk"
         $shortcut = $WshShell.CreateShortcut($shortcutPath)
+        $icoPath = Join-Path $PROJECT_DIR "assets\smoke-signal.ico"
         $shortcut.TargetPath = $trayExe
         $shortcut.WorkingDirectory = $PROJECT_DIR
         $shortcut.Description = "Smoke Signal — local audio transcription"
+        if (Test-Path $icoPath) { $shortcut.IconLocation = "$icoPath,0" }
         $shortcut.Save()
         Write-Ok "Desktop shortcut created"
 
@@ -245,6 +247,7 @@ try {
         $startShortcut.TargetPath = $trayExe
         $startShortcut.WorkingDirectory = $PROJECT_DIR
         $startShortcut.Description = "Smoke Signal — local audio transcription"
+        if (Test-Path $icoPath) { $startShortcut.IconLocation = "$icoPath,0" }
         $startShortcut.Save()
         Write-Ok "Start Menu shortcut created"
     } else {

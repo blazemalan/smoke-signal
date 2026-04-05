@@ -75,8 +75,13 @@ def run_job(job: dict, db_path: Path) -> None:
 
     # Format and write output
     markdown = format_transcript(result, vault_mode=False)
-    DEFAULT_TRANSCRIPTS_DIR.mkdir(parents=True, exist_ok=True)
-    output_path = get_output_path(file_path, DEFAULT_TRANSCRIPTS_DIR, vault_mode=False)
+
+    # Use configured output dir, falling back to default
+    configured_dir = config.get("defaults", {}).get("output_dir")
+    output_dir = Path(configured_dir) if configured_dir else DEFAULT_TRANSCRIPTS_DIR
+    output_dir.mkdir(parents=True, exist_ok=True)
+
+    output_path = get_output_path(file_path, output_dir, vault_mode=False)
     output_path.write_text(markdown, encoding="utf-8")
 
     elapsed = time.time() - start
