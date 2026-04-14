@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import os
+import sys
 import threading
 import tkinter as tk
 from datetime import datetime
@@ -168,12 +169,10 @@ class DashboardWindow:
     # -- Tkinter thread --
 
     def _run(self) -> None:
-        # Fix blurry rendering on high-DPI Windows displays
-        try:
-            import ctypes
-            ctypes.windll.shcore.SetProcessDpiAwareness(2)
-        except Exception:
-            pass
+        from smoke_signal.platform import apply_window_theme
+
+        # DPI + dark title bar (Windows); no-op on macOS
+        apply_window_theme(None)  # call before Tk() for DPI awareness
 
         self._root = tk.Tk()
         self._root.title("Smoke Signal")
@@ -182,18 +181,7 @@ class DashboardWindow:
         self._root.protocol("WM_DELETE_WINDOW", self._on_close)
         self._root.withdraw()  # start hidden
 
-        # Dark title bar on Windows 11
-        try:
-            import ctypes
-            hwnd = ctypes.windll.user32.GetParent(self._root.winfo_id())
-            DWMWA_USE_IMMERSIVE_DARK_MODE = 20
-            value = ctypes.c_int(1)
-            ctypes.windll.dwmapi.DwmSetWindowAttribute(
-                hwnd, DWMWA_USE_IMMERSIVE_DARK_MODE,
-                ctypes.byref(value), ctypes.sizeof(value),
-            )
-        except Exception:
-            pass
+        apply_window_theme(self._root)  # dark title bar (needs window handle)
 
         # Set window icon (campfire, not tkinter feather)
         try:
@@ -204,9 +192,10 @@ class DashboardWindow:
                 icons = [ImageTk.PhotoImage(img.resize((s, s), Image.LANCZOS)) for s in (16, 32, 48, 64)]
                 self._icon_refs = icons  # prevent GC
                 self._root.iconphoto(True, *icons)
-            ico = assets / "smoke-signal.ico"
-            if ico.exists():
-                self._root.iconbitmap(str(ico))
+            if sys.platform == "win32":
+                ico = assets / "smoke-signal.ico"
+                if ico.exists():
+                    self._root.iconbitmap(str(ico))
         except Exception:
             pass
 
@@ -624,7 +613,10 @@ class DashboardWindow:
 
         # Mousewheel scrolling (no visible scrollbar — cleaner look)
         def _on_mousewheel(event):
-            canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
+            if sys.platform == "darwin":
+                canvas.yview_scroll(int(-1 * event.delta), "units")
+            else:
+                canvas.yview_scroll(int(-1 * (event.delta / 120)), "units")
         canvas.bind_all("<MouseWheel>", _on_mousewheel)
 
         return canvas, scroll_frame
@@ -666,18 +658,13 @@ class DashboardWindow:
             entry.configure(fg=FG_MUTED)
 
     def _open_path(self, path: Path) -> None:
-        target = path if path.is_dir() else path.parent
-        try:
-            os.startfile(str(target))
-        except Exception:
-            logger.warning(f"Could not open: {target}")
+        from smoke_signal.platform import open_path
+        open_path(path)
 
     def _open_file(self, path: Path) -> None:
         """Open a specific file (e.g. a transcript) with the default app."""
-        try:
-            os.startfile(str(path))
-        except Exception:
-            logger.warning(f"Could not open file: {path}")
+        from smoke_signal.platform import open_file
+        open_file(path)
 
     # -- Actions --
 

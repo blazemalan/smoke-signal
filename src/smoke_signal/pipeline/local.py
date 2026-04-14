@@ -82,7 +82,8 @@ def transcribe(
     # Step 4: Unload Whisper to free VRAM
     del model
     gc.collect()
-    torch.cuda.empty_cache()
+    from smoke_signal.platform import free_gpu_memory
+    free_gpu_memory()
     log_fn("Whisper model unloaded, VRAM freed.")
 
     # Step 5: Diarize
@@ -105,7 +106,8 @@ def transcribe(
     # Step 7: Unload diarization model
     del diarize_model
     gc.collect()
-    torch.cuda.empty_cache()
+    from smoke_signal.platform import free_gpu_memory
+    free_gpu_memory()
 
     # Step 8: Build result
     segments = _build_segments(result.get("segments", []))

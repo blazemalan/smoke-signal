@@ -61,7 +61,8 @@ def enroll_speaker(
         wav_path.unlink(missing_ok=True)
         model = None
         inference = None
-        torch.cuda.empty_cache()
+        from smoke_signal.platform import free_gpu_memory
+        free_gpu_memory()
 
     # Load or create profile
     profile_path = profiles_dir / f"{name.lower()}.json"

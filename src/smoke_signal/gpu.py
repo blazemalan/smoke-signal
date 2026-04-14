@@ -33,6 +33,17 @@ DIARIZATION_VRAM_MB = 2000  # pyannote 4.0.x peak
 def check_gpu() -> dict:
     """Check GPU availability and return info dict."""
     if not torch.cuda.is_available():
+        # Check for Apple Silicon MPS
+        if hasattr(torch.backends, "mps") and torch.backends.mps.is_available():
+            return {
+                "available": True,
+                "device": "mps",
+                "name": "Apple Silicon (MPS)",
+                "vram_total_mb": 0,
+                "vram_free_mb": 0,
+                "cuda_version": None,
+                "compute_capability": None,
+            }
         return {
             "available": False,
             "device": "cpu",
@@ -69,7 +80,10 @@ def estimate_vram(model_name: str, compute_type: str) -> int:
 def check_vram_sufficient(model_name: str, compute_type: str, gpu_info: dict) -> tuple[bool, str]:
     """Check if GPU has enough VRAM for the chosen model."""
     if not gpu_info["available"]:
-        return False, "No CUDA GPU detected. Transcription will run on CPU (very slow)."
+        return False, "No GPU acceleration detected. Transcription will run on CPU (slower)."
+
+    if gpu_info["device"] == "mps":
+        return True, "Apple Silicon MPS — shared unified memory, VRAM check skipped."
 
     needed = estimate_vram(model_name, compute_type)
     available = gpu_info["vram_total_mb"]

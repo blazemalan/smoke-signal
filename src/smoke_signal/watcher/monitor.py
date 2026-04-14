@@ -1,6 +1,5 @@
 """File system monitoring for iCloud Drive with stability detection."""
 
-import ctypes
 import logging
 import threading
 import time
@@ -154,26 +153,6 @@ def start_observer(
 
 
 def _is_file_locked(file_path: Path) -> bool:
-    """Check if a file is locked by another process (Windows-specific)."""
-    try:
-        GENERIC_READ = 0x80000000
-        FILE_SHARE_NONE = 0
-        OPEN_EXISTING = 3
-        INVALID_HANDLE = ctypes.c_void_p(-1).value
-
-        handle = ctypes.windll.kernel32.CreateFileW(
-            str(file_path),
-            GENERIC_READ,
-            FILE_SHARE_NONE,
-            None,
-            OPEN_EXISTING,
-            0,
-            None,
-        )
-        if handle == INVALID_HANDLE:
-            return True
-        ctypes.windll.kernel32.CloseHandle(handle)
-        return False
-    except (OSError, AttributeError):
-        # Non-Windows or ctypes error — assume not locked
-        return False
+    """Check if a file is locked by another process."""
+    from smoke_signal.platform import is_file_locked
+    return is_file_locked(file_path)

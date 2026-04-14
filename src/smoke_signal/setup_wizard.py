@@ -138,11 +138,9 @@ class SetupWizard:
     """Multi-step setup wizard with cinder.works aesthetic."""
 
     def __init__(self):
-        try:
-            import ctypes
-            ctypes.windll.shcore.SetProcessDpiAwareness(2)
-        except Exception:
-            pass
+        from smoke_signal.platform import apply_window_theme
+
+        apply_window_theme(None)  # DPI awareness before Tk()
 
         self.root = tk.Tk()
         self.root.title("Smoke Signal")
@@ -150,17 +148,7 @@ class SetupWizard:
         self.root.resizable(False, False)
         self.root.configure(bg=BG_DEEP)
 
-        try:
-            import ctypes
-            hwnd = ctypes.windll.user32.GetParent(self.root.winfo_id())
-            DWMWA_USE_IMMERSIVE_DARK_MODE = 20
-            value = ctypes.c_int(1)
-            ctypes.windll.dwmapi.DwmSetWindowAttribute(
-                hwnd, DWMWA_USE_IMMERSIVE_DARK_MODE,
-                ctypes.byref(value), ctypes.sizeof(value),
-            )
-        except Exception:
-            pass
+        apply_window_theme(self.root)  # dark title bar
 
         # Center on screen
         self.root.update_idletasks()

@@ -35,7 +35,7 @@ smoke_signal = ["config.yaml.example"]
 dev = ["pytest>=7.0", "pytest-cov"]
 watch = [
     "watchdog>=4.0",
-    "winotify>=1.1",
+    "winotify>=1.1; sys_platform == 'win32'",
     "pystray>=0.19",
     "Pillow>=10.0",
 ]

@@ -1,12 +1,11 @@
-"""Windows toast notifications for the Smoke Signal watcher."""
+"""Cross-platform notifications for the Smoke Signal watcher."""
 
 import logging
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
-APP_ID = "Smoke Signal"
-_ICON_PATH = str(Path(__file__).resolve().parents[3] / "assets" / "smoke-signal.ico")
+_ICON_PATH = str(Path(__file__).resolve().parents[3] / "assets" / "smoke-signal.png")
 
 
 def notify_success(
@@ -59,26 +58,17 @@ def _send_toast(
     body: str,
     actions: list[tuple[str, str]] | None = None,
 ) -> None:
-    """Send a Windows toast notification.
+    """Send a platform-native notification.
 
     Args:
         title: Notification heading.
         body: Notification message text.
         actions: Optional list of (label, launch_uri) button pairs.
+                 Supported on Windows; ignored on macOS.
     """
     try:
-        from winotify import Notification
-
-        icon = _ICON_PATH if Path(_ICON_PATH).exists() else ""
-        toast = Notification(
-            app_id=APP_ID,
-            title=title,
-            msg=body,
-            icon=icon,
-        )
-        for label, launch_uri in actions or []:
-            toast.add_actions(label=label, launch=launch_uri)
-        toast.show()
-        logger.debug(f"Toast sent: {title}")
+        from smoke_signal.platform import send_notification
+        send_notification(title, body, icon_path=_ICON_PATH, actions=actions)
+        logger.debug(f"Notification sent: {title}")
     except Exception as e:
-        logger.warning(f"Failed to send toast notification: {e}")
+        logger.warning(f"Failed to send notification: {e}")
