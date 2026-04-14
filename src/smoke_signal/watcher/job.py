@@ -73,6 +73,15 @@ def run_job(job: dict, db_path: Path) -> None:
             audio_array=audio_array,
         )
 
+    # Use the actual recording date, not the transcription date
+    recording_date = job.get("recording_date")
+    if recording_date:
+        from datetime import datetime
+        try:
+            result.date = datetime.strptime(recording_date, "%Y-%m-%d")
+        except ValueError:
+            pass
+
     # Format and write output
     markdown = format_transcript(result, vault_mode=False)
 

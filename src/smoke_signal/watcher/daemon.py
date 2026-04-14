@@ -143,8 +143,12 @@ def run_daemon(
     if recovered:
         logger.info(f"Recovered {recovered} interrupted job(s)")
 
-    # GPU lock
-    gpu_lock = GpuLock(DEFAULT_DATA_DIR / "gpu.lock")
+    # GPU lock — clear stale lock from previous crash on startup
+    gpu_lock_path = DEFAULT_DATA_DIR / "gpu.lock"
+    if gpu_lock_path.exists():
+        logger.info("Clearing stale GPU lock from previous session")
+        gpu_lock_path.unlink(missing_ok=True)
+    gpu_lock = GpuLock(gpu_lock_path)
 
     # Processing queue
     def process_fn(job: dict) -> None:

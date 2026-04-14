@@ -148,6 +148,7 @@ class DashboardWindow:
         self._paused = False
         self._active_tab = "activity"
         self._held_entries: dict[str, tk.Entry] = {}
+        self._last_job_snapshot: str = ""  # detect changes for auto-refresh
 
     # -- Public API (called from other threads) --
 
@@ -760,11 +761,12 @@ class DashboardWindow:
     # -- Refresh loop --
 
     def _refresh(self) -> None:
-        """Update status bar every 2 seconds."""
+        """Update status bar and auto-refresh active tab every 2 seconds."""
         if self._stop_event.is_set():
             return
 
         try:
+            # Update header status
             if self._paused:
                 status = "Paused"
             elif self.queue and self.queue.is_busy:
@@ -788,6 +790,16 @@ class DashboardWindow:
             if held_btn:
                 held_text = f"Held Files ({held_count})" if held_count else "Held Files"
                 held_btn.configure(text=held_text)
+
+            # Auto-refresh active tab when data changes
+            jobs = get_recent_jobs(self.db_path, limit=20)
+            snapshot = "|".join(f"{j['file_path']}:{j['status']}" for j in jobs)
+            if snapshot != self._last_job_snapshot:
+                self._last_job_snapshot = snapshot
+                if self._active_tab == "activity":
+                    self._switch_tab("activity")
+                elif self._active_tab == "held":
+                    self._switch_tab("held")
 
         except Exception:
             pass
