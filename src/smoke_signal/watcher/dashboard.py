@@ -288,6 +288,15 @@ class DashboardWindow:
         self._pause_btn.bind("<Enter>", lambda e: self._pause_btn.configure(bg=BG_CARD_HOVER))
         self._pause_btn.bind("<Leave>", lambda e: self._pause_btn.configure(bg=BG_CARD))
 
+        summarize_btn = tk.Label(
+            footer, text="Summarize", font=(FONT[0], 10),
+            bg=ACCENT, fg=FG, padx=14, pady=6, cursor="hand2",
+        )
+        summarize_btn.pack(side="left", padx=(10, 0), pady=8)
+        summarize_btn.bind("<Button-1>", lambda e: self._launch_transcribe())
+        summarize_btn.bind("<Enter>", lambda e: summarize_btn.configure(bg=ACCENT_GLOW))
+        summarize_btn.bind("<Leave>", lambda e: summarize_btn.configure(bg=ACCENT))
+
         logs_btn = tk.Label(
             footer, text="Logs", font=(FONT[0], 9),
             bg=BG_DEEP, fg=FG_MUTED, padx=8, pady=6, cursor="hand2",
@@ -744,6 +753,23 @@ class DashboardWindow:
         else:
             self._pause_btn.configure(text="Pause Watcher")
             self.on_resume()
+
+    def _launch_transcribe(self) -> None:
+        """Open a terminal running claude /transcribe."""
+        import subprocess
+        try:
+            if sys.platform == "win32":
+                subprocess.Popen(
+                    ["cmd", "/k", "claude", "-p", "/transcribe"],
+                    creationflags=subprocess.CREATE_NEW_CONSOLE,
+                )
+            elif sys.platform == "darwin":
+                script = 'tell app "Terminal" to do script "claude -p /transcribe"'
+                subprocess.Popen(["osascript", "-e", script])
+            else:
+                subprocess.Popen(["x-terminal-emulator", "-e", "claude", "-p", "/transcribe"])
+        except Exception as e:
+            logger.warning(f"Could not launch Claude: {e}")
 
     # -- Refresh loop --
 
