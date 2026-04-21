@@ -75,7 +75,7 @@ CATEGORY_PICKS = [
 def _friendly_path(raw: str) -> str:
     """Shorten a path to something readable.
 
-    C:\\Users\\blaze\\iCloudDrive\\iCloud~com~openplanetsoftware~just-press-record
+    C:\\Users\\you\\iCloudDrive\\iCloud~com~openplanetsoftware~just-press-record
     → iCloudDrive > just-press-record
     """
     p = Path(str(raw))
@@ -755,19 +755,19 @@ class DashboardWindow:
             self.on_resume()
 
     def _launch_transcribe(self) -> None:
-        """Open a terminal running claude /transcribe."""
+        """Open a terminal running claude with /transcribe."""
         import subprocess
         try:
             if sys.platform == "win32":
                 subprocess.Popen(
-                    ["cmd", "/k", "claude", "-p", "/transcribe"],
-                    creationflags=subprocess.CREATE_NEW_CONSOLE,
+                    'start cmd /k claude "/transcribe"',
+                    shell=True,
                 )
             elif sys.platform == "darwin":
-                script = 'tell app "Terminal" to do script "claude -p /transcribe"'
+                script = 'tell app "Terminal" to do script "claude \\"/transcribe\\""'
                 subprocess.Popen(["osascript", "-e", script])
             else:
-                subprocess.Popen(["x-terminal-emulator", "-e", "claude", "-p", "/transcribe"])
+                subprocess.Popen(["x-terminal-emulator", "-e", "claude", "/transcribe"])
         except Exception as e:
             logger.warning(f"Could not launch Claude: {e}")
 
