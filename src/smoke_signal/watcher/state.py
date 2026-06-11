@@ -65,6 +65,12 @@ def record_file(
         return cursor.lastrowid
 
 
+def get_all_processed_filepaths(db_path: Path) -> set[str]:
+    """Get a set of all processed file paths."""
+    with _connect(db_path) as conn:
+        rows = conn.execute("SELECT file_path FROM processed_files").fetchall()
+        return {row["file_path"] for row in rows}
+
 def is_processed(db_path: Path, file_path: Path) -> bool:
     """Check if a file has already been seen (any status)."""
     with _connect(db_path) as conn:
