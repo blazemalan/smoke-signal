@@ -132,19 +132,21 @@ def reset_stale_processing(db_path: Path) -> int:
 
 def mark_existing_as_seen(db_path: Path, file_paths: list[Path]) -> int:
     """Mark a batch of existing files as 'seen' (first-run seeding). Returns count."""
-    count = 0
     with _connect(db_path) as conn:
-        for fp in file_paths:
-            cursor = conn.execute(
-                """
-                INSERT OR IGNORE INTO processed_files
-                    (file_path, file_size, status, created_at)
-                VALUES (?, ?, 'seen', ?)
-                """,
-                (str(fp), fp.stat().st_size if fp.exists() else 0, datetime.now().isoformat()),
-            )
-            count += cursor.rowcount
-    return count
+        now = datetime.now().isoformat()
+        params = [
+            (str(fp), fp.stat().st_size if fp.exists() else 0, now)
+            for fp in file_paths
+        ]
+        cursor = conn.executemany(
+            """
+            INSERT OR IGNORE INTO processed_files
+                (file_path, file_size, status, created_at)
+            VALUES (?, ?, 'seen', ?)
+            """,
+            params,
+        )
+        return cursor.rowcount
 
 
 def _connect(db_path: Path) -> sqlite3.Connection:
