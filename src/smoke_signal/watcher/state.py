@@ -91,6 +91,22 @@ def get_held(db_path: Path) -> list[dict]:
     )
 
 
+ALLOWED_COLUMNS = {
+    "file_path",
+    "file_size",
+    "recording_date",
+    "recording_time",
+    "status",
+    "meeting_type",
+    "description",
+    "profile",
+    "output_path",
+    "error_message",
+    "created_at",
+    "completed_at",
+    "processing_time_seconds",
+}
+
 def update_status(db_path: Path, file_path: Path, status: str, **kwargs: Any) -> None:
     """Update the status and optional fields for a file."""
     sets = ["status = ?"]
@@ -100,6 +116,8 @@ def update_status(db_path: Path, file_path: Path, status: str, **kwargs: Any) ->
         kwargs.setdefault("completed_at", datetime.now().isoformat())
 
     for key, value in kwargs.items():
+        if key not in ALLOWED_COLUMNS:
+            raise ValueError(f"Invalid column name: {key}")
         sets.append(f"{key} = ?")
         values.append(value)
 
