@@ -39,6 +39,7 @@ def enroll_speaker(
         )
         inference = Inference(model, window="whole", device=torch.device(device))
 
+        # TODO: Remove soundfile workaround once upstream pyannote 4.x / torchaudio AudioDecoder bugs are patched.
         # Load audio with soundfile (bypasses pyannote 4.x / torchaudio AudioDecoder bugs)
         click.echo("Extracting speaker embedding...")
         import soundfile as sf
