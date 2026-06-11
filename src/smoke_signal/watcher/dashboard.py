@@ -489,6 +489,7 @@ class DashboardWindow:
         entry.configure(fg=FG_MUTED)
         entry.bind("<FocusIn>", lambda e, ent=entry: self._clear_placeholder(ent, "Or type"))
         entry.bind("<FocusOut>", lambda e, ent=entry: self._restore_placeholder(ent, "Or type a description..."))
+        entry.bind("<Return>", lambda e, fp=file_path: self._process_held(fp))
         entry.pack(side="left", fill="x", expand=True, ipady=4, padx=(0, 8))
 
         self._held_entries[file_path] = entry

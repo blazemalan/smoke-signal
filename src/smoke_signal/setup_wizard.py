@@ -440,6 +440,7 @@ class SetupWizard:
 
         entry.bind("<FocusIn>", on_focus_in)
         entry.bind("<FocusOut>", on_focus_out)
+        entry.bind("<Return>", lambda e: self._verify_token())
 
         # Status
         self._token_status = tk.Label(
@@ -550,6 +551,7 @@ class SetupWizard:
                 self._watch_display.configure(text="No folder selected", fg=FG_MUTED)
 
         self._watch_var.trace_add("write", on_change)
+        entry.bind("<Return>", lambda e: self._save_watch_and_next())
 
         # Buttons
         btn_frame = tk.Frame(self._container, bg=BG_DEEP)
