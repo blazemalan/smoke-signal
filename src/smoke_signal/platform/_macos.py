@@ -29,13 +29,16 @@ def send_notification(
     Action buttons are not supported in basic AppleScript notifications,
     so the actions parameter is accepted but ignored.
     """
-    # Escape double quotes for AppleScript
-    safe_title = title.replace('"', '\\"')
-    safe_body = body.replace('"', '\\"')
-    script = f'display notification "{safe_body}" with title "{safe_title}"'
     try:
         subprocess.run(
-            ["osascript", "-e", script],
+            [
+                "osascript",
+                "-e", "on run argv",
+                "-e", "display notification (item 2 of argv) with title (item 1 of argv)",
+                "-e", "end run",
+                title,
+                body,
+            ],
             capture_output=True, timeout=5,
         )
     except Exception as e:
