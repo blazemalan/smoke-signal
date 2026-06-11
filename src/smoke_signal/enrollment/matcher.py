@@ -81,6 +81,7 @@ def _extract_speaker_embeddings(
         sr = 16000
     else:
         from smoke_signal.audio import preprocess_audio
+        # TODO: Remove soundfile workaround once upstream pyannote 4.x / torchaudio AudioDecoder bugs are patched.
         import soundfile as sf
         wav_path = preprocess_audio(audio_path)
         audio_data, sr = sf.read(str(wav_path), dtype="float32")
