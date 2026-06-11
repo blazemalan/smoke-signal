@@ -760,8 +760,7 @@ class DashboardWindow:
         try:
             if sys.platform == "win32":
                 subprocess.Popen(
-                    'start cmd /k claude "/transcribe"',
-                    shell=True,
+                    ["cmd.exe", "/c", "start", "cmd.exe", "/k", "claude", "/transcribe"]
                 )
             elif sys.platform == "darwin":
                 script = 'tell app "Terminal" to do script "claude \\"/transcribe\\""'
