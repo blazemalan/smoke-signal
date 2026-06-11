@@ -9,7 +9,7 @@ from typing import Callable
 from watchdog.events import FileSystemEvent, FileSystemEventHandler
 from watchdog.observers import Observer
 
-from smoke_signal.watcher.state import is_processed
+from smoke_signal.watcher.state import get_all_processed_filepaths, is_processed
 
 logger = logging.getLogger(__name__)
 
@@ -129,10 +129,12 @@ def scan_existing(
         logger.warning(f"Watch directory does not exist: {watch_dir}")
         return new_files
 
+    processed_paths = get_all_processed_filepaths(db_path)
+
     for m4a in watch_dir.rglob("*.m4a"):
         if m4a.stat().st_size < min_file_size:
             continue
-        if not is_processed(db_path, m4a):
+        if str(m4a) not in processed_paths:
             new_files.append(m4a)
 
     new_files.sort(key=lambda p: p.stat().st_mtime)
