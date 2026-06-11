@@ -764,8 +764,8 @@ class DashboardWindow:
                     ["cmd.exe", "/c", "start", "cmd.exe", "/k", "claude", "/transcribe"]
                 )
             elif sys.platform == "darwin":
-                script = 'tell app "Terminal" to do script "claude \\"/transcribe\\""'
-                subprocess.Popen(["osascript", "-e", script])
+                script = 'on run argv\n  tell app "Terminal" to do script (item 1 of argv)\nend run'
+                subprocess.Popen(["osascript", "-e", script, 'claude "/transcribe"'])
             else:
                 subprocess.Popen(["x-terminal-emulator", "-e", "claude", "/transcribe"])
         except Exception as e:
