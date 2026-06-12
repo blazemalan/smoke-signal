@@ -97,6 +97,23 @@ def get_held(db_path: Path) -> list[dict]:
     )
 
 
+def get_failed(db_path: Path) -> list[dict]:
+    """Get all files with status='failed', ordered by creation time."""
+    return _query(
+        db_path,
+        "SELECT * FROM processed_files WHERE status = 'failed' ORDER BY created_at",
+    )
+
+
+def requeue_failed(db_path: Path) -> int:
+    """Reset all 'failed' jobs back to 'pending'. Returns the count of requeued jobs."""
+    with _connect(db_path) as conn:
+        cursor = conn.execute(
+            "UPDATE processed_files SET status = 'pending', error_message = NULL WHERE status = 'failed'"
+        )
+        return cursor.rowcount
+
+
 ALLOWED_COLUMNS = {
     "file_path",
     "file_size",
