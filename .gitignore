@@ -41,4 +41,10 @@ logs/
 config.yaml
 
 # User batch scripts
-scripts/*.bat
+scripts/
+
+# Claude local settings
+.claude/
+
+# uv (project uses conda/pip)
+uv.lock
