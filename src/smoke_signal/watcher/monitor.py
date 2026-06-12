@@ -20,7 +20,7 @@ DEFAULT_MIN_FILE_SIZE = 50_000    # 50KB minimum (skip stubs)
 
 
 class ICloudFileHandler(FileSystemEventHandler):
-    """Watches for new .m4a files and validates they are fully synced."""
+    """Watches for new audio files and validates they are fully synced."""
 
     def __init__(
         self,
@@ -29,6 +29,7 @@ class ICloudFileHandler(FileSystemEventHandler):
         stability_interval: int = DEFAULT_STABILITY_INTERVAL,
         stability_threshold: int = DEFAULT_STABILITY_THRESHOLD,
         min_file_size: int = DEFAULT_MIN_FILE_SIZE,
+        extensions: list[str] | None = None,
     ):
         super().__init__()
         self.on_file_ready = on_file_ready
@@ -36,6 +37,7 @@ class ICloudFileHandler(FileSystemEventHandler):
         self.stability_interval = stability_interval
         self.stability_threshold = stability_threshold
         self.min_file_size = min_file_size
+        self.extensions = {f".{ext.lstrip('.')}".lower() for ext in (extensions or [".m4a"])}
         self._tracking: dict[str, dict] = {}  # path -> {size, stable_since}
         self._lock = threading.Lock()
 
@@ -48,8 +50,8 @@ class ICloudFileHandler(FileSystemEventHandler):
             self._handle_file(Path(event.src_path))
 
     def _handle_file(self, file_path: Path) -> None:
-        """Start tracking a file if it's a valid .m4a we haven't processed."""
-        if file_path.suffix.lower() != ".m4a":
+        """Start tracking a file if it's a valid audio file we haven't processed."""
+        if file_path.suffix.lower() not in self.extensions:
             return
 
         if is_processed(self.db_path, file_path):
@@ -124,8 +126,9 @@ def scan_existing(
     watch_dir: Path,
     db_path: Path,
     min_file_size: int = DEFAULT_MIN_FILE_SIZE,
+    extensions: list[str] | None = None,
 ) -> list[Path]:
-    """Find .m4a files in the watch directory that aren't in the database.
+    """Find audio files in the watch directory that aren't in the database.
 
     Returns list of new file paths (not yet processed).
     """
@@ -135,12 +138,28 @@ def scan_existing(
         return new_files
 
     processed_paths = get_all_processed_filepaths(db_path)
+    normalized_exts = {f".{ext.lstrip('.')}".lower() for ext in (extensions or [".m4a"])}
 
-    for m4a in watch_dir.rglob("*.m4a"):
-        if m4a.stat().st_size < min_file_size:
-            continue
-        if str(m4a) not in processed_paths:
-            new_files.append(m4a)
+    seen_paths = set()
+    for ext in normalized_exts:
+        # Some systems match case-insensitively with rglob, others don't,
+        # but rglob will find files. We do extension check to be safe.
+        for file_path in watch_dir.rglob(f"*{ext}"):
+            path_str = str(file_path)
+            if path_str in seen_paths:
+                continue
+
+            # Additional suffix check to handle case-insensitive filesystems where rglob
+            # might return files with slightly different extensions.
+            if file_path.suffix.lower() not in normalized_exts:
+                continue
+
+            if file_path.stat().st_size < min_file_size:
+                continue
+
+            if path_str not in processed_paths:
+                seen_paths.add(path_str)
+                new_files.append(file_path)
 
     new_files.sort(key=lambda p: p.stat().st_mtime)
     return new_files

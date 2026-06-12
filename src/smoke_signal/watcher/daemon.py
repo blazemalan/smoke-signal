@@ -169,12 +169,14 @@ def run_daemon(
     # File handler
     stability_seconds = watcher_config.get("stability_seconds", 30)
     min_size = watcher_config.get("min_file_size_bytes", 50_000)
+    extensions = watcher_config.get("extensions", [".m4a"])
 
     handler = ICloudFileHandler(
         on_file_ready=lambda fp: _on_file_ready(fp, db_path, queue, watcher_config),
         db_path=db_path,
         stability_threshold=stability_seconds,
         min_file_size=min_size,
+        extensions=extensions,
     )
 
     if not watch_dir.exists():
@@ -188,13 +190,13 @@ def run_daemon(
     # First-run: seed existing files as "seen"
     if not DEFAULT_DB_PATH.exists() or _is_first_run(db_path):
         logger.info("First run detected — marking existing files as seen")
-        existing = scan_existing(watch_dir, db_path, min_file_size=min_size)
+        existing = scan_existing(watch_dir, db_path, min_file_size=min_size, extensions=extensions)
         if existing:
             marked = mark_existing_as_seen(db_path, existing)
             logger.info(f"Marked {marked} existing files as seen")
 
     # Scan for new files since last run
-    new_files = scan_existing(watch_dir, db_path, min_file_size=min_size)
+    new_files = scan_existing(watch_dir, db_path, min_file_size=min_size, extensions=extensions)
     for fp in new_files:
         _on_file_ready(fp, db_path, queue, watcher_config)
 
@@ -310,16 +312,17 @@ def run_once(watch_dir: Path | None = None) -> None:
 
     gpu_lock = GpuLock(DEFAULT_DATA_DIR / "gpu.lock")
     min_size = watcher_config.get("min_file_size_bytes", 50_000)
+    extensions = watcher_config.get("extensions", [".m4a"])
 
     # First-run: seed existing files as "seen"
     if _is_first_run(db_path):
         logger.info("First run detected — marking existing files as seen")
-        existing = scan_existing(watch_dir, db_path, min_file_size=min_size)
+        existing = scan_existing(watch_dir, db_path, min_file_size=min_size, extensions=extensions)
         if existing:
             marked = mark_existing_as_seen(db_path, existing)
             logger.info(f"Marked {marked} existing files as seen")
 
-    new_files = scan_existing(watch_dir, db_path, min_file_size=min_size)
+    new_files = scan_existing(watch_dir, db_path, min_file_size=min_size, extensions=extensions)
     if not new_files:
         logger.info("No new files to process")
         return

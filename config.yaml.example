@@ -28,6 +28,7 @@ watcher:
   scan_days: 7
   stability_seconds: 30        # Wait this long after file stops changing before processing
   min_file_size_bytes: 50000   # Ignore files smaller than this (likely not real recordings)
+  # extensions: [".m4a", ".wav", ".mp3"] # Default is [".m4a"]
   enable_notifications: true
 
   # Categories — files with matching keywords get auto-classified.
