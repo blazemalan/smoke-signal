@@ -26,7 +26,7 @@ def run_job(job: dict, db_path: Path) -> None:
     from smoke_signal.pipeline.local import transcribe
 
     file_path = Path(job["file_path"])
-    profile_name = job.get("profile", "work")
+    profile_name = job.get("profile", "default")
     meeting_type = job.get("meeting_type", "general")
 
     logger.info(f"Starting job: {file_path.name} (type={meeting_type}, profile={profile_name})")
@@ -87,7 +87,7 @@ def run_job(job: dict, db_path: Path) -> None:
 
     # Use configured output dir, falling back to default
     configured_dir = config.get("defaults", {}).get("output_dir")
-    output_dir = Path(configured_dir) if configured_dir else DEFAULT_TRANSCRIPTS_DIR
+    output_dir = Path(configured_dir).expanduser() if configured_dir else DEFAULT_TRANSCRIPTS_DIR
     output_dir.mkdir(parents=True, exist_ok=True)
 
     output_path = get_output_path(file_path, output_dir, vault_mode=False)
