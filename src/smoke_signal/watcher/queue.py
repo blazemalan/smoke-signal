@@ -69,6 +69,7 @@ class ProcessingQueue:
         self.gpu_lock = gpu_lock
         self._wake_event = threading.Event()
         self._running = True
+        self._paused = False
         self._current_file: str | None = None
 
     def enqueue_wake(self) -> None:
@@ -81,7 +82,7 @@ class ProcessingQueue:
         while self._running:
             self._wake_event.clear()
 
-            while self._running:
+            while self._running and not self._paused:
                 pending = get_pending(self.db_path)
                 if not pending:
                     break
@@ -115,6 +116,19 @@ class ProcessingQueue:
             self._wake_event.wait(timeout=30)
 
         logger.info("Processing queue stopped")
+
+    def pause(self) -> None:
+        """Stop picking up new jobs. The in-flight job (if any) finishes."""
+        self._paused = True
+
+    def resume(self) -> None:
+        """Resume picking up jobs and wake the loop immediately."""
+        self._paused = False
+        self._wake_event.set()
+
+    @property
+    def is_paused(self) -> bool:
+        return self._paused
 
     def stop(self) -> None:
         """Signal the queue to stop."""

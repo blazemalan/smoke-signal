@@ -214,11 +214,12 @@ def run_daemon(
             from smoke_signal.watcher.dashboard import DashboardWindow
 
             def on_pause():
-                logger.info("Paused")
+                queue.pause()
+                logger.info("Paused — current job will finish; no new jobs will start")
 
             def on_resume():
+                queue.resume()
                 logger.info("Resumed")
-                queue.enqueue_wake()
 
             dashboard = DashboardWindow(db_path, queue, on_pause, on_resume)
 
