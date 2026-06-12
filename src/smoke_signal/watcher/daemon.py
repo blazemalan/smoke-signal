@@ -195,7 +195,10 @@ def run_daemon(
     # Stability checker thread
     def stability_loop():
         while observer.is_alive():
-            handler.check_stability()
+            try:
+                handler.check_stability()
+            except Exception:
+                logger.exception("Stability check crashed; continuing")
             time.sleep(handler.stability_interval)
 
     stability_thread = threading.Thread(target=stability_loop, daemon=True)

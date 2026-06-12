@@ -78,7 +78,12 @@ class ICloudFileHandler(FileSystemEventHandler):
                     to_remove.append(path_str)
                     continue
 
-                current_size = file_path.stat().st_size
+                try:
+                    current_size = file_path.stat().st_size
+                except OSError:
+                    # Vanished between exists() and stat() (iCloud eviction)
+                    to_remove.append(path_str)
+                    continue
 
                 # Too small (stub or accidental recording)
                 if current_size < self.min_file_size:
