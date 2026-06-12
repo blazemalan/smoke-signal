@@ -276,7 +276,7 @@ class DashboardWindow:
         tab_bar.pack_propagate(False)
 
         self._tab_buttons = {}
-        for tab_id, label in [("activity", "Activity"), ("held", "Held Files"), ("folders", "Folders")]:
+        for tab_id, label in [("activity", "Activity"), ("held", "Held Files"), ("folders", "Folders"), ("settings", "Settings")]:
             btn = tk.Label(
                 tab_bar, text=label, font=(FONT[0], 10),
                 bg=BG, fg=FG_DIM, padx=16, pady=8, cursor="hand2",
@@ -349,6 +349,8 @@ class DashboardWindow:
             self._build_held_tab()
         elif tab_id == "folders":
             self._build_folders_tab()
+        elif tab_id == "settings":
+            self._build_settings_tab()
 
     def _build_activity_tab(self) -> None:
         container = self._content
@@ -633,6 +635,168 @@ class DashboardWindow:
                 card, text=subtitle, font=(FONT[0], 9),
                 bg=BG_CARD, fg=FG_MUTED, anchor="w",
             ).pack(fill="x")
+
+    # -- Settings tab --
+
+    _MODEL_CHOICES = ["large-v3", "large-v3-turbo", "medium", "small", "base", "tiny"]
+
+    def _build_settings_tab(self) -> None:
+        container = self._content
+        config = load_config()
+        defaults = config.get("defaults", {}) or {}
+        watcher_cfg = get_watcher_config(config) or {}
+        integrations = config.get("integrations", {}) or {}
+
+        canvas, scroll = self._make_scrollable(container)
+        inner = tk.Frame(scroll, bg=BG)
+        inner.pack(fill="both", expand=True, padx=24, pady=16)
+
+        self._settings_widgets = {}
+
+        # --- Transcription card ---
+        card = tk.Frame(inner, bg=BG_CARD, padx=14, pady=10)
+        card.pack(fill="x", pady=(0, 8))
+        tk.Label(card, text="Transcription", font=(FONT[0], 10, "bold"),
+                 bg=BG_CARD, fg=FG).pack(anchor="w")
+
+        model_var = tk.StringVar(value=defaults.get("model", "large-v3-turbo"))
+        self._settings_widgets["model"] = model_var
+        row = self._settings_row(card, "Whisper model")
+        opt = tk.OptionMenu(row, model_var, *self._MODEL_CHOICES)
+        opt.configure(bg=BG_CARD_HOVER, fg=FG, activebackground=BORDER,
+                      activeforeground=FG, highlightthickness=0, bd=0,
+                      font=(FONT[0], 9))
+        opt["menu"].configure(bg=BG_CARD, fg=FG, font=(FONT[0], 9))
+        opt.pack(side="right")
+
+        self._settings_widgets["language"] = self._settings_entry(
+            card, "Language code ('auto' to detect)", defaults.get("language", "en"))
+        self._settings_widgets["speakers"] = self._settings_entry(
+            card, "Expected speakers (blank = auto)",
+            "" if defaults.get("speakers") is None else str(defaults.get("speakers")))
+
+        identify_var = tk.BooleanVar(value=bool(defaults.get("identify", False)))
+        self._settings_widgets["identify"] = identify_var
+        self._settings_check(card, "Identify enrolled speakers", identify_var)
+
+        # --- Watcher card ---
+        card = tk.Frame(inner, bg=BG_CARD, padx=14, pady=10)
+        card.pack(fill="x", pady=(0, 8))
+        tk.Label(card, text="Watcher", font=(FONT[0], 10, "bold"),
+                 bg=BG_CARD, fg=FG).pack(anchor="w")
+
+        notif_var = tk.BooleanVar(value=bool(watcher_cfg.get("enable_notifications", True)))
+        self._settings_widgets["notifications"] = notif_var
+        self._settings_check(card, "Show notifications", notif_var)
+
+        self._settings_widgets["stability"] = self._settings_entry(
+            card, "Seconds a file must be stable before processing",
+            str(watcher_cfg.get("stability_seconds", 30)))
+        exts = watcher_cfg.get("extensions") or [".m4a"]
+        self._settings_widgets["extensions"] = self._settings_entry(
+            card, "Audio file types (comma-separated)", ", ".join(exts))
+
+        # --- Integrations card ---
+        card = tk.Frame(inner, bg=BG_CARD, padx=14, pady=10)
+        card.pack(fill="x", pady=(0, 8))
+        tk.Label(card, text="Integrations", font=(FONT[0], 10, "bold"),
+                 bg=BG_CARD, fg=FG).pack(anchor="w")
+        self._settings_widgets["summarize_command"] = self._settings_entry(
+            card, "Summarize button command ({file} = transcript path; blank hides the button)",
+            integrations.get("summarize_command", "") or "")
+
+        # --- Save row ---
+        save_row = tk.Frame(inner, bg=BG)
+        save_row.pack(fill="x", pady=(8, 0))
+        self._settings_status = tk.Label(
+            save_row, text="", font=(FONT[0], 9), bg=BG, fg=FG_MUTED)
+        self._settings_status.pack(side="left")
+        save_btn = tk.Label(
+            save_row, text="Save Settings", font=(FONT[0], 10),
+            bg=ACCENT, fg=FG, padx=14, pady=5, cursor="hand2")
+        save_btn.pack(side="right")
+        save_btn.bind("<Button-1>", lambda e: self._save_settings())
+        save_btn.bind("<Enter>", lambda e: save_btn.configure(bg=ACCENT_GLOW))
+        save_btn.bind("<Leave>", lambda e: save_btn.configure(bg=ACCENT))
+
+    def _settings_row(self, card: tk.Frame, label: str) -> tk.Frame:
+        row = tk.Frame(card, bg=BG_CARD)
+        row.pack(fill="x", pady=(6, 0))
+        tk.Label(row, text=label, font=(FONT[0], 9),
+                 bg=BG_CARD, fg=FG_DIM).pack(side="left")
+        return row
+
+    def _settings_entry(self, card: tk.Frame, label: str, value: str) -> tk.Entry:
+        row = self._settings_row(card, label)
+        entry = tk.Entry(row, font=(FONT[0], 9), bg=BG_CARD_HOVER, fg=FG,
+                         insertbackground=FG, relief="flat", width=28)
+        entry.insert(0, value)
+        entry.pack(side="right", ipady=3)
+        return entry
+
+    def _settings_check(self, card: tk.Frame, label: str, var: tk.BooleanVar) -> None:
+        row = self._settings_row(card, label)
+        chk = tk.Checkbutton(
+            row, variable=var, bg=BG_CARD, activebackground=BG_CARD,
+            selectcolor=BG_CARD_HOVER, highlightthickness=0, bd=0)
+        chk.pack(side="right")
+
+    def _save_settings(self) -> None:
+        w = self._settings_widgets
+
+        # Validate numeric fields before touching the config
+        speakers_raw = w["speakers"].get().strip()
+        stability_raw = w["stability"].get().strip()
+        try:
+            speakers = int(speakers_raw) if speakers_raw else None
+            if speakers is not None and speakers < 1:
+                raise ValueError
+        except ValueError:
+            self._settings_status.configure(text="Speakers must be a positive number (or blank)", fg="#e06c5c")
+            return
+        try:
+            stability = int(stability_raw)
+            if stability < 1:
+                raise ValueError
+        except ValueError:
+            self._settings_status.configure(text="Stability seconds must be a positive number", fg="#e06c5c")
+            return
+
+        extensions = []
+        for tok in w["extensions"].get().split(","):
+            tok = tok.strip().lower()
+            if not tok:
+                continue
+            extensions.append(tok if tok.startswith(".") else "." + tok)
+
+        config = load_config()
+        config.setdefault("defaults", {})
+        config.setdefault("watcher", {})
+
+        config["defaults"]["model"] = w["model"].get()
+        language = w["language"].get().strip() or "en"
+        config["defaults"]["language"] = language
+        if speakers is None:
+            config["defaults"].pop("speakers", None)
+        else:
+            config["defaults"]["speakers"] = speakers
+        config["defaults"]["identify"] = bool(w["identify"].get())
+
+        config["watcher"]["enable_notifications"] = bool(w["notifications"].get())
+        config["watcher"]["stability_seconds"] = stability
+        if extensions:
+            config["watcher"]["extensions"] = extensions
+
+        summarize = w["summarize_command"].get().strip()
+        if summarize:
+            config.setdefault("integrations", {})["summarize_command"] = summarize
+        elif "integrations" in config:
+            config["integrations"].pop("summarize_command", None)
+
+        save_config(config)
+        self._settings_status.configure(
+            text="Saved \u2713  \u2014 file-type and stability changes apply after restart",
+            fg=FG_MUTED)
 
     # -- Helpers --
 
