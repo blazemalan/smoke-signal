@@ -1,0 +1,11 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(ls:*)",
+      "Bash(grep -v \"^---FILE END---$\")"
+    ]
+  },
+  "remote": {
+    "defaultEnvironmentId": "env_01Rjum5od6NdASst1J8t74dj"
+  }
+}
