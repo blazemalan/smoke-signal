@@ -392,7 +392,8 @@ class SetupWizard:
             ("\u2460", "Create a free account", "https://huggingface.co/join"),
             ("\u2461", "Accept speaker model terms", "https://huggingface.co/pyannote/speaker-diarization-3.1"),
             ("\u2462", "Accept segmentation terms", "https://huggingface.co/pyannote/segmentation-3.0"),
-            ("\u2463", "Create an access token", "https://huggingface.co/settings/tokens"),
+            ("\u2463", "Accept embedding terms", "https://huggingface.co/pyannote/embedding"),
+            ("\u2464", "Create an access token", "https://huggingface.co/settings/tokens"),
         ]
 
         for icon, label, url in steps:
