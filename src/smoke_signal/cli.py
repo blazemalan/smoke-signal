@@ -173,6 +173,14 @@ def status():
     do_status()
 
 
+@main.command("retry")
+@click.option("--list", "list_only", is_flag=True, help="List failed jobs without changing their status")
+def retry(list_only):
+    """List and requeue failed watcher jobs."""
+    from smoke_signal.commands.retry import do_retry
+    do_retry(list_only)
+
+
 @main.command()
 def setup():
     """Run the first-time setup wizard."""
