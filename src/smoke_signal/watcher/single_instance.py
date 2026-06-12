@@ -7,6 +7,7 @@ over the GPU lock and the SQLite state DB.
 """
 
 import logging
+import os
 import socket
 import threading
 from typing import Callable
@@ -34,7 +35,16 @@ class SingleInstance:
         """
         try:
             s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            # NOTE: deliberately no SO_REUSEADDR — a second bind must fail.
+            if os.name == "nt":
+                # Prevent another process from hijacking the port; Windows
+                # already allows rebinding through TIME_WAIT by default.
+                if hasattr(socket, "SO_EXCLUSIVEADDRUSE"):
+                    s.setsockopt(socket.SOL_SOCKET, socket.SO_EXCLUSIVEADDRUSE, 1)
+            else:
+                # Allow rebinding while an old accepted connection sits in
+                # TIME_WAIT (quit + relaunch within ~60s). Does NOT allow two
+                # live listeners, so the guard still holds.
+                s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
             s.bind(("127.0.0.1", self.port))
             s.listen(2)
             self._sock = s

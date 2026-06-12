@@ -311,12 +311,16 @@ class DashboardWindow:
         self._pause_btn.bind("<Enter>", lambda e: self._pause_btn.configure(bg=BG_CARD_HOVER))
         self._pause_btn.bind("<Leave>", lambda e: self._pause_btn.configure(bg=BG_CARD))
 
+        if self._summarize_command():
+            self._add_summarize_footer_btn(footer)
+
+    def _add_summarize_footer_btn(self, footer: tk.Frame) -> None:
         summarize_btn = tk.Label(
             footer, text="Summarize", font=(FONT[0], 10),
             bg=ACCENT, fg=FG, padx=14, pady=6, cursor="hand2",
         )
         summarize_btn.pack(side="left", padx=(10, 0), pady=8)
-        summarize_btn.bind("<Button-1>", lambda e: self._launch_transcribe())
+        summarize_btn.bind("<Button-1>", lambda e: self._summarize_file(None))
         summarize_btn.bind("<Enter>", lambda e: summarize_btn.configure(bg=ACCENT_GLOW))
         summarize_btn.bind("<Leave>", lambda e: summarize_btn.configure(bg=ACCENT))
 
@@ -434,9 +438,11 @@ class DashboardWindow:
             bg=BG_CARD, fg=FG_DIM, anchor="w",
         ).pack(side="left", fill="x", expand=True)
 
-        # Action button
+        # Action buttons
         if status == "completed" and output_path and Path(output_path).exists():
             self._action_btn(bottom, "Open Transcript", lambda p=output_path: self._open_file(Path(p)))
+            if self._summarize_command():
+                self._action_btn(bottom, "Summarize", lambda p=output_path: self._summarize_file(Path(p)))
         elif status == "failed":
             self._action_btn(bottom, "Retry", lambda fp=file_path: self._retry_job(fp))
 
@@ -945,21 +951,19 @@ class DashboardWindow:
             self._pause_btn.configure(text="Resume Watcher")
             self.on_pause()
 
-    def _launch_transcribe(self) -> None:
-        """Open a terminal running claude with /transcribe."""
-        import subprocess
-        try:
-            if sys.platform == "win32":
-                subprocess.Popen(
-                    ["cmd.exe", "/c", "start", "cmd.exe", "/k", "claude", "/transcribe"]
-                )
-            elif sys.platform == "darwin":
-                script = 'on run argv\n  tell app "Terminal" to do script (item 1 of argv)\nend run'
-                subprocess.Popen(["osascript", "-e", script, 'claude "/transcribe"'])
-            else:
-                subprocess.Popen(["x-terminal-emulator", "-e", "claude", "/transcribe"])
-        except Exception as e:
-            logger.warning(f"Could not launch Claude: {e}")
+    def _summarize_command(self) -> str | None:
+        """The configured summarize command, or None (button hidden)."""
+        from smoke_signal.integrations import get_summarize_command
+        return get_summarize_command(load_config())
+
+    def _summarize_file(self, transcript_path: Path | None) -> None:
+        """Run the configured summarize command, optionally on a transcript."""
+        from smoke_signal.integrations import launch_summarize
+        template = self._summarize_command()
+        if not template:
+            return
+        if not launch_summarize(template, transcript_path):
+            logger.warning("Summarize command failed to launch")
 
     # -- Refresh loop --
 
