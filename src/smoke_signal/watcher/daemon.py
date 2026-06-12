@@ -3,6 +3,7 @@
 import logging
 import logging.handlers
 import signal
+import sys
 import threading
 import time
 import warnings
@@ -220,7 +221,6 @@ def run_daemon(
                 queue.enqueue_wake()
 
             dashboard = DashboardWindow(db_path, queue, on_pause, on_resume)
-            dashboard.start()
 
             def on_quit():
                 logger.info("Shutting down...")
@@ -233,7 +233,22 @@ def run_daemon(
                 on_open_dashboard=dashboard.request_show,
             )
             tray.set_status("Watching")
-            tray.run()  # blocks
+
+            if sys.platform == "darwin":
+                # macOS: Cocoa requires the tray on the main thread, so the
+                # dashboard runs on a secondary thread (legacy path).
+                dashboard.start()
+                tray.run()  # blocks main thread
+            else:
+                # Windows/Linux: Tkinter must own the main thread, otherwise the
+                # Tcl interpreter is finalized on the wrong thread at exit and
+                # aborts with "Tcl_AsyncDelete: async handler deleted by the
+                # wrong thread" (STATUS_BREAKPOINT / 0x80000003). Run the tray on
+                # a background thread and the dashboard on the main thread.
+                tray_thread = threading.Thread(target=tray.run, daemon=True, name="tray")
+                tray_thread.start()
+                dashboard.run_main()  # blocks main thread until quit
+                tray.stop()
         except ImportError:
             logger.warning("pystray not available, running headless")
             _block_until_signal(observer, queue)
