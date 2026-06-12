@@ -37,7 +37,11 @@ def launch_summarize(template: str, transcript_path=None) -> bool:
         argv = build_summarize_argv(template, transcript_path)
 
         if sys.platform == "win32":
-            cmd = ["cmd.exe", "/c", "start", "cmd.exe", "/k"] + argv
+            # CREATE_NEW_CONSOLE opens the visible terminal directly and
+            # explicitly opts out of the tray app's CREATE_NO_WINDOW default.
+            cmd = ["cmd.exe", "/k"] + argv
+            subprocess.Popen(cmd, creationflags=subprocess.CREATE_NEW_CONSOLE)
+            return True
         elif sys.platform == "darwin":
             script = 'on run argv\n  tell app "Terminal" to do script (item 1 of argv)\nend run'
             cmd_str = shlex.join(argv)
