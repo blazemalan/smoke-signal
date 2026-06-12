@@ -94,14 +94,23 @@ class SmokeSignalTray:
         return items
 
     def _toggle_pause(self, icon, item) -> None:
+        # _status_text deliberately untouched: the menu label derives
+        # 'Paused' live from _is_paused(), so it can't go stale when the
+        # pause comes from the dashboard instead of the tray.
         if self._is_paused():
             self._paused = False
-            self._status_text = "Watching"
             self.on_resume()
         else:
             self._paused = True
-            self._status_text = "Paused"
             self.on_pause()
+
+    def refresh_menu(self) -> None:
+        """Re-render the tray menu (call after external state changes)."""
+        if self._icon is not None:
+            try:
+                self._icon.update_menu()
+            except Exception:
+                logger.debug("Tray menu refresh failed", exc_info=True)
 
     def _quit(self, icon, item) -> None:
         self._status_text = "Stopping..."

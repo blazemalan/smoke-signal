@@ -31,6 +31,7 @@ from smoke_signal.watcher.monitor import (
 )
 from smoke_signal.watcher.notifier import notify_error, notify_held
 from smoke_signal.watcher.queue import GpuLock, ProcessingQueue
+from smoke_signal.watcher.single_instance import SingleInstance
 from smoke_signal.watcher.state import (
     init_db,
     is_processed,
@@ -120,6 +121,14 @@ def run_daemon(
     use_tray: bool = True,
 ) -> None:
     """Main daemon entry point. Sets up all components and runs."""
+    # Single-instance guard: if a watcher is already running, pop its
+    # dashboard window instead of starting a second copy.
+    instance = SingleInstance()
+    if not instance.acquire():
+        instance.notify_existing()
+        print("Smoke Signal is already running — showing its window instead.")
+        return
+
     config = load_config()
     watcher_config = config.get("watcher", {})
 
@@ -216,13 +225,22 @@ def run_daemon(
             from smoke_signal.watcher.tray import SmokeSignalTray
             from smoke_signal.watcher.dashboard import DashboardWindow
 
+            def _refresh_tray():
+                t = tray_holder.get("tray")
+                if t is not None:
+                    t.refresh_menu()
+
             def on_pause():
                 queue.pause()
+                _refresh_tray()
                 logger.info("Paused — current job will finish; no new jobs will start")
 
             def on_resume():
                 queue.resume()
+                _refresh_tray()
                 logger.info("Resumed")
+
+            tray_holder: dict = {}
 
             dashboard = DashboardWindow(db_path, queue, on_pause, on_resume)
 
@@ -237,7 +255,13 @@ def run_daemon(
                 on_open_dashboard=dashboard.request_show,
                 is_paused_fn=lambda: queue.is_paused,
             )
+            tray_holder["tray"] = tray
             tray.set_status("Watching")
+
+            # Second launches signal us to pop the dashboard; also show it
+            # on this first launch so double-clicking the icon opens a window.
+            instance.listen(dashboard.request_show)
+            dashboard.request_show()
 
             if sys.platform == "darwin":
                 # macOS: Cocoa requires the tray on the main thread, so the
@@ -256,11 +280,14 @@ def run_daemon(
                 tray.stop()
         except ImportError:
             logger.warning("pystray not available, running headless")
+            instance.listen(lambda: None)
             _block_until_signal(observer, queue)
     else:
+        instance.listen(lambda: None)
         _block_until_signal(observer, queue)
 
     observer.join(timeout=5)
+    instance.release()
     logger.info("Smoke Signal watcher stopped")
 
 
