@@ -1,6 +1,11 @@
 import unittest
 from unittest.mock import patch, MagicMock
-from src.smoke_signal.gpu import check_gpu, estimate_vram, check_vram_sufficient
+
+import pytest
+
+torch = pytest.importorskip("torch", reason="gpu module requires torch")
+
+from smoke_signal.gpu import check_gpu, estimate_vram, check_vram_sufficient
 
 class TestGPU(unittest.TestCase):
 

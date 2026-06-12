@@ -20,6 +20,14 @@ def do_transcribe(audio_file, model, language, speakers, identify, output, compu
     # Load config and merge with profile
     config = load_config()
     if profile:
+        available = config.get("profiles", {}) or {}
+        if profile not in available:
+            names = ", ".join(sorted(available)) or "(none defined)"
+            click.secho(
+                f"Warning: profile '{profile}' not found in config.yaml — using defaults. "
+                f"Available profiles: {names}",
+                fg="yellow",
+            )
         prof = get_profile(config, profile)
     else:
         prof = config.get("defaults", {})
@@ -81,7 +89,10 @@ def do_transcribe(audio_file, model, language, speakers, identify, output, compu
     else:
         formatted_text = format_transcript(result, vault_mode=vault)
 
-    output_dir = DEFAULT_TRANSCRIPTS_DIR
+    # Honor configured output_dir (same behavior as the watcher), falling
+    # back to the default transcripts directory.
+    configured_dir = prof.get("output_dir")
+    output_dir = Path(configured_dir).expanduser() if configured_dir else DEFAULT_TRANSCRIPTS_DIR
     if vault:
         vault_dir = prof.get("vault_dir") or config.get("defaults", {}).get("vault_dir")
         if vault_dir:
