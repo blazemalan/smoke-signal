@@ -85,7 +85,7 @@ def verify():
     """Verify GPU, dependencies, and configuration."""
     import sys
 
-    click.echo("=== Scribe System Check ===\n")
+    click.echo("=== Smoke Signal System Check ===\n")
 
     # Python
     click.echo(f"Python: {sys.version.split()[0]}")
