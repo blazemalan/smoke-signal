@@ -154,9 +154,27 @@ class DashboardWindow:
     # -- Public API (called from other threads) --
 
     def start(self) -> None:
-        """Launch the UI thread."""
+        """Launch the UI on a dedicated daemon thread (macOS legacy path).
+
+        Only use this when the tray must own the main thread (macOS/Cocoa).
+        On Windows/Linux prefer run_main(), which keeps Tk on the main thread
+        and avoids the cross-thread Tcl finalization crash at shutdown.
+        """
         self._thread = threading.Thread(target=self._run, daemon=True, name="dashboard")
         self._thread.start()
+
+    def run_main(self) -> None:
+        """Run the Tk event loop on the *calling* (main) thread, blocking until quit.
+
+        Tkinter/Tcl must be created, used, and finalized on one single thread.
+        Running it on a secondary thread means the interpreter gets finalized on
+        a different thread at process exit, which aborts with
+        "Tcl_AsyncDelete: async handler deleted by the wrong thread"
+        (Tcl_Panic -> abort -> STATUS_BREAKPOINT / 0x80000003). Owning the main
+        thread eliminates that entire class of crash.
+        """
+        self._thread = threading.current_thread()
+        self._run()
 
     def request_show(self) -> None:
         """Ask the window to show itself (thread-safe)."""
@@ -203,6 +221,11 @@ class DashboardWindow:
         self._poll_signals()
         self._refresh()
         self._root.mainloop()
+
+        # mainloop has returned (window destroyed via _poll_signals). Drop the
+        # Tk reference here, on the owning thread, so the Tcl interpreter is
+        # finalized by the same thread that created it.
+        self._root = None
 
     def _poll_signals(self) -> None:
         """Check for show/stop requests from other threads."""
