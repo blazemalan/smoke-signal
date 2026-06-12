@@ -11,7 +11,14 @@ from PIL import Image, ImageDraw, ImageFilter
 
 
 def create_app_icon(size: int = 256) -> Image.Image:
-    """Generate a modern app icon with smooth flame on dark background."""
+    """Generate a modern app icon with a smooth flame on a dark background.
+
+    Args:
+        size: The desired output size of the icon in pixels (default is 256).
+
+    Returns:
+        The generated icon as a PIL Image object.
+    """
     # Render at 4x for quality anti-aliasing
     s = size * 4
     img = Image.new("RGBA", (s, s), (0, 0, 0, 0))
@@ -38,8 +45,10 @@ def create_app_icon(size: int = 256) -> Image.Image:
     glow_r = int(s * 0.30)
     for i in range(glow_r, 0, -1):
         t = i / glow_r
+        # Quadratic falloff for smooth alpha blending
         a = int(40 * (1 - t) * (1 - t))
         glow_draw.ellipse(
+            # Elongated vertical glow with an i * 0.7 offset
             [glow_cx - i, glow_cy - int(i * 0.7), glow_cx + i, glow_cy + int(i * 0.7)],
             fill=(212, 69, 26, a),
         )
@@ -119,8 +128,18 @@ def create_app_icon(size: int = 256) -> Image.Image:
     return img
 
 
-def _rounded_rect(draw, x1, y1, x2, y2, r, fill):
-    """Draw a rounded rectangle."""
+def _rounded_rect(draw: ImageDraw.ImageDraw, x1: int, y1: int, x2: int, y2: int, r: int, fill: tuple[int, int, int, int]) -> None:
+    """Draw a rounded rectangle.
+
+    Args:
+        draw: The ImageDraw object to draw on.
+        x1: The x-coordinate of the top-left corner.
+        y1: The y-coordinate of the top-left corner.
+        x2: The x-coordinate of the bottom-right corner.
+        y2: The y-coordinate of the bottom-right corner.
+        r: The radius of the rounded corners.
+        fill: The color to fill the rectangle with.
+    """
     draw.rectangle([x1 + r, y1, x2 - r, y2], fill=fill)
     draw.rectangle([x1, y1 + r, x2, y2 - r], fill=fill)
     draw.pieslice([x1, y1, x1 + 2 * r, y1 + 2 * r], 180, 270, fill=fill)
@@ -129,8 +148,17 @@ def _rounded_rect(draw, x1, y1, x2, y2, r, fill):
     draw.pieslice([x2 - 2 * r, y2 - 2 * r, x2, y2], 0, 90, fill=fill)
 
 
-def _draw_smooth_flame(draw, cx, bottom_y, top_y, half_width, color):
-    """Draw a smooth flame shape with organic curves."""
+def _draw_smooth_flame(draw: ImageDraw.ImageDraw, cx: int, bottom_y: int, top_y: int, half_width: int, color: tuple[int, int, int, int]) -> None:
+    """Draw a smooth flame shape with organic curves.
+
+    Args:
+        draw: The ImageDraw object to draw on.
+        cx: The center x-coordinate of the flame.
+        bottom_y: The y-coordinate of the bottom of the flame.
+        top_y: The y-coordinate of the top tip of the flame.
+        half_width: The maximum half-width of the flame.
+        color: The color to fill the flame shape with.
+    """
     points = []
     steps = 60
 
@@ -140,12 +168,15 @@ def _draw_smooth_flame(draw, cx, bottom_y, top_y, half_width, color):
 
         # Organic width profile
         base = 1 - t
+        # Expands the flame's middle
         belly = 0.12 * math.sin(t * math.pi * 0.85)
+        # Forms a sharper tip taper
         taper = 1 - t ** 0.65
 
         w = half_width * taper * (base + belly)
         w = max(w, 0)
 
+        # Adds an organic wobble curve
         wobble = math.sin(t * math.pi * 2.2) * half_width * 0.025
         points.append((cx - w + wobble, y))
 
@@ -154,12 +185,15 @@ def _draw_smooth_flame(draw, cx, bottom_y, top_y, half_width, color):
         y = bottom_y + (top_y - bottom_y) * t
 
         base = 1 - t
+        # Expands the flame's middle
         belly = 0.12 * math.sin(t * math.pi * 0.85)
+        # Forms a sharper tip taper
         taper = 1 - t ** 0.65
 
         w = half_width * taper * (base + belly)
         w = max(w, 0)
 
+        # Adds an organic wobble curve
         wobble = math.sin(t * math.pi * 2.2) * half_width * 0.025
         points.append((cx + w - wobble, y))
 
@@ -167,8 +201,18 @@ def _draw_smooth_flame(draw, cx, bottom_y, top_y, half_width, color):
         draw.polygon(points, fill=color)
 
 
-def _draw_log(draw, x1, y1, x2, y2, angle, s):
-    """Draw a simple wood log."""
+def _draw_log(draw: ImageDraw.ImageDraw, x1: int, y1: int, x2: int, y2: int, angle: int, s: int) -> None:
+    """Draw a simple wood log.
+
+    Args:
+        draw: The ImageDraw object to draw on.
+        x1: The x-coordinate of the top-left corner.
+        y1: The y-coordinate of the top-left corner.
+        x2: The x-coordinate of the bottom-right corner.
+        y2: The y-coordinate of the bottom-right corner.
+        angle: The angle to rotate the log (currently unused directly in this function, handled via placement).
+        s: The total size scalar used for proportional corner radii.
+    """
     draw.rounded_rectangle(
         [x1, y1, x2, y2],
         radius=int(s * 0.01),
@@ -183,12 +227,25 @@ def _draw_log(draw, x1, y1, x2, y2, angle, s):
 
 
 def create_tray_icon(size: int = 64) -> Image.Image:
-    """Create icon for system tray."""
+    """Create an icon specifically for the system tray.
+
+    Args:
+        size: The desired output size of the tray icon in pixels (default is 64).
+
+    Returns:
+        The generated system tray icon as a PIL Image object.
+    """
     return create_app_icon(size)
 
 
 def save_ico(output_path: Path, sizes: list[int] | None = None) -> None:
-    """Save a multi-size .ico file for Windows."""
+    """Save a multi-size .ico file for Windows.
+
+    Args:
+        output_path: The file path where the .ico file will be saved.
+        sizes: A list of integer sizes for the icon layers. If None,
+            defaults to standard Windows icon sizes.
+    """
     if sizes is None:
         sizes = [16, 24, 32, 48, 64, 128, 256]
     images = [create_app_icon(s) for s in sizes]
@@ -201,7 +258,11 @@ def save_ico(output_path: Path, sizes: list[int] | None = None) -> None:
 
 
 def save_icns(output_path: Path) -> None:
-    """Save an .icns file for macOS."""
+    """Save an .icns file for macOS.
+
+    Args:
+        output_path: The file path where the .icns file will be saved.
+    """
     sizes = [16, 32, 64, 128, 256, 512, 1024]
     images = [create_app_icon(s) for s in sizes]
     images[-1].save(str(output_path), format="ICNS", append_images=images[:-1])
