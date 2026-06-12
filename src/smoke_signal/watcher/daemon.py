@@ -235,6 +235,7 @@ def run_daemon(
             tray = SmokeSignalTray(
                 db_path, on_pause, on_resume, on_quit,
                 on_open_dashboard=dashboard.request_show,
+                is_paused_fn=lambda: queue.is_paused,
             )
             tray.set_status("Watching")
 

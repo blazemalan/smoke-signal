@@ -770,13 +770,16 @@ class DashboardWindow:
         self._switch_tab("folders")
 
     def _toggle_pause(self) -> None:
-        self._paused = not self._paused
-        if self._paused:
-            self._pause_btn.configure(text="Resume Watcher")
-            self.on_pause()
-        else:
+        # Queue state is the source of truth (a pause may have come from the tray)
+        paused = self.queue.is_paused if self.queue else self._paused
+        if paused:
+            self._paused = False
             self._pause_btn.configure(text="Pause Watcher")
             self.on_resume()
+        else:
+            self._paused = True
+            self._pause_btn.configure(text="Resume Watcher")
+            self.on_pause()
 
     def _launch_transcribe(self) -> None:
         """Open a terminal running claude with /transcribe."""
@@ -798,6 +801,12 @@ class DashboardWindow:
 
     def _refresh(self) -> None:
         """Update status bar and auto-refresh active tab every 2 seconds."""
+        # Mirror pause state from the queue (pause may be toggled from the tray)
+        if self.queue and self.queue.is_paused != self._paused:
+            self._paused = self.queue.is_paused
+            self._pause_btn.configure(
+                text="Resume Watcher" if self._paused else "Pause Watcher"
+            )
         if self._stop_event.is_set():
             return
 

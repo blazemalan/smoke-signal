@@ -25,15 +25,27 @@ class SmokeSignalTray:
         on_resume: Callable,
         on_quit: Callable,
         on_open_dashboard: Callable | None = None,
+        is_paused_fn: Callable[[], bool] | None = None,
     ):
         self.db_path = db_path
         self.on_pause = on_pause
         self.on_resume = on_resume
         self.on_quit = on_quit
         self.on_open_dashboard = on_open_dashboard
+        self.is_paused_fn = is_paused_fn
         self._paused = False
         self._status_text = "Idle"
         self._icon: pystray.Icon | None = None
+
+    def _is_paused(self) -> bool:
+        """True paused state — reads the queue when available so the tray
+        mirrors pauses triggered from the dashboard (and vice versa)."""
+        if self.is_paused_fn is not None:
+            try:
+                return bool(self.is_paused_fn())
+            except Exception:
+                return self._paused
+        return self._paused
 
     def _open_dashboard(self, icon, item) -> None:
         if self.on_open_dashboard:
@@ -47,7 +59,7 @@ class SmokeSignalTray:
                 default=True,
             ),
             pystray.MenuItem(
-                lambda _: f"Smoke Signal — {self._status_text}",
+                lambda _: f"Smoke Signal — {'Paused' if self._is_paused() else self._status_text}",
                 None,
                 enabled=False,
             ),
@@ -63,7 +75,7 @@ class SmokeSignalTray:
             ),
             pystray.Menu.SEPARATOR,
             pystray.MenuItem(
-                lambda _: "Resume" if self._paused else "Pause",
+                lambda _: "Resume" if self._is_paused() else "Pause",
                 self._toggle_pause,
             ),
             pystray.MenuItem("Quit", self._quit),
@@ -82,13 +94,14 @@ class SmokeSignalTray:
         return items
 
     def _toggle_pause(self, icon, item) -> None:
-        self._paused = not self._paused
-        if self._paused:
-            self._status_text = "Paused"
-            self.on_pause()
-        else:
+        if self._is_paused():
+            self._paused = False
             self._status_text = "Watching"
             self.on_resume()
+        else:
+            self._paused = True
+            self._status_text = "Paused"
+            self.on_pause()
 
     def _quit(self, icon, item) -> None:
         self._status_text = "Stopping..."
