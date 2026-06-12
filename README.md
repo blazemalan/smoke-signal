@@ -164,6 +164,18 @@ smoke-signal-tray
 smoke-signal status
 ```
 
+### Retry failed jobs
+
+If a transcription fails (e.g., out of VRAM, corrupt file), re-queue it:
+
+```bash
+# See what failed and why
+smoke-signal retry --list
+
+# Re-queue all failed jobs (the running watcher picks them up)
+smoke-signal retry
+```
+
 ### Manually classify a held recording
 
 If the watcher can't auto-classify a file, it holds it for you:
