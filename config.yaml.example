@@ -37,3 +37,8 @@ watcher:
     interview: ["interview", "candidate"]
     lecture: ["lecture", "class", "course", "seminar"]
     personal: ["journal", "note", "memo", "thought", "voice"]
+
+integrations:
+  # Command run by the dashboard's Summarize button. {file} is replaced
+  # with the transcript path. Button is hidden if this is not set.
+  # summarize_command: 'claude "/transcribe {file}"'
