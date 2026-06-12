@@ -148,6 +148,9 @@ class DashboardWindow:
         self._root: tk.Tk | None = None
         self._paused = False
         self._active_tab = "activity"
+        self._enroll_thread = None
+        self._enroll_msg = ""
+        self._enroll_done = False
         self._held_entries: dict[str, tk.Entry] = {}
         self._last_job_snapshot: str = ""  # detect changes for auto-refresh
 
@@ -276,7 +279,7 @@ class DashboardWindow:
         tab_bar.pack_propagate(False)
 
         self._tab_buttons = {}
-        for tab_id, label in [("activity", "Activity"), ("held", "Held Files"), ("folders", "Folders"), ("settings", "Settings")]:
+        for tab_id, label in [("activity", "Activity"), ("held", "Held Files"), ("folders", "Folders"), ("speakers", "Speakers"), ("settings", "Settings")]:
             btn = tk.Label(
                 tab_bar, text=label, font=(FONT[0], 10),
                 bg=BG, fg=FG_DIM, padx=16, pady=8, cursor="hand2",
@@ -353,6 +356,8 @@ class DashboardWindow:
             self._build_held_tab()
         elif tab_id == "folders":
             self._build_folders_tab()
+        elif tab_id == "speakers":
+            self._build_speakers_tab()
         elif tab_id == "settings":
             self._build_settings_tab()
 
@@ -641,6 +646,125 @@ class DashboardWindow:
                 card, text=subtitle, font=(FONT[0], 9),
                 bg=BG_CARD, fg=FG_MUTED, anchor="w",
             ).pack(fill="x")
+
+    # -- Speakers tab --
+
+    def _build_speakers_tab(self) -> None:
+        container = self._content
+        canvas, scroll = self._make_scrollable(container)
+        inner = tk.Frame(scroll, bg=BG)
+        inner.pack(fill="both", expand=True, padx=24, pady=16)
+
+        try:
+            from smoke_signal.config import DEFAULT_PROFILES_DIR
+            from smoke_signal.enrollment.manager import list_profiles
+            profiles = list_profiles(DEFAULT_PROFILES_DIR)
+        except Exception:
+            logger.exception("Could not list speaker profiles")
+            profiles = []
+
+        if profiles:
+            for prof in profiles:
+                self._speaker_card(inner, prof)
+        else:
+            card = tk.Frame(inner, bg=BG_CARD, padx=14, pady=12)
+            card.pack(fill="x", pady=(0, 8))
+            tk.Label(card, text="No speakers enrolled yet",
+                     font=(FONT[0], 10), bg=BG_CARD, fg=FG_DIM).pack(anchor="w")
+            tk.Label(card, text="Enroll a voice below and transcripts will name who said what.",
+                     font=(FONT[0], 9), bg=BG_CARD, fg=FG_MUTED).pack(anchor="w")
+
+        # Enroll card
+        card = tk.Frame(inner, bg=BG_CARD, padx=14, pady=10)
+        card.pack(fill="x", pady=(8, 0))
+        tk.Label(card, text="Enroll a speaker", font=(FONT[0], 10, "bold"),
+                 bg=BG_CARD, fg=FG).pack(anchor="w")
+        tk.Label(card, text="30–60 seconds of one person talking works best — an old voice memo is perfect.",
+                 font=(FONT[0], 9), bg=BG_CARD, fg=FG_MUTED).pack(anchor="w", pady=(2, 6))
+
+        row = tk.Frame(card, bg=BG_CARD)
+        row.pack(fill="x")
+        tk.Label(row, text="Name", font=(FONT[0], 9),
+                 bg=BG_CARD, fg=FG_DIM).pack(side="left")
+        self._enroll_name = tk.Entry(row, font=(FONT[0], 9), bg=BG_CARD_HOVER,
+                                     fg=FG, insertbackground=FG, relief="flat", width=20)
+        self._enroll_name.pack(side="left", padx=(8, 0), ipady=3)
+
+        from smoke_signal.enrollment.service import recording_available
+        if recording_available():
+            self._action_btn(row, "Record 30s", lambda: self._start_enroll(record=True))
+        self._action_btn(row, "From Audio File…", lambda: self._start_enroll(record=False), accent=True)
+
+        self._enroll_status = tk.Label(card, text=self._enroll_msg or "",
+                                       font=(FONT[0], 9), bg=BG_CARD, fg=FG_DIM, anchor="w")
+        self._enroll_status.pack(fill="x", pady=(6, 0))
+
+    def _speaker_card(self, parent: tk.Frame, prof: dict) -> None:
+        card = tk.Frame(parent, bg=BG_CARD, padx=14, pady=10)
+        card.pack(fill="x", pady=(0, 6))
+        row = tk.Frame(card, bg=BG_CARD)
+        row.pack(fill="x")
+        tk.Label(row, text=prof.get("name", "?"), font=(FONT[0], 10, "bold"),
+                 bg=BG_CARD, fg=FG).pack(side="left")
+        self._action_btn(row, "Delete", lambda n=prof.get("name"): self._delete_speaker(n))
+        samples = prof.get("num_samples", "?")
+        updated = (prof.get("updated") or "")[:10]
+        tk.Label(card, text=f"{samples} voice sample(s)  ·  updated {updated}",
+                 font=(FONT[0], 9), bg=BG_CARD, fg=FG_MUTED, anchor="w").pack(fill="x", pady=(2, 0))
+
+    def _delete_speaker(self, name: str) -> None:
+        try:
+            from smoke_signal.config import DEFAULT_PROFILES_DIR
+            from smoke_signal.enrollment.manager import delete_profile
+            delete_profile(name, DEFAULT_PROFILES_DIR)
+        except Exception:
+            logger.exception("Could not delete speaker profile")
+        self._switch_tab("speakers")
+
+    def _start_enroll(self, record: bool) -> None:
+        if self._enroll_thread is not None and self._enroll_thread.is_alive():
+            return  # one at a time
+        name = self._enroll_name.get().strip()
+        if not name:
+            self._enroll_msg = "Enter a name first"
+            self._enroll_status.configure(text=self._enroll_msg)
+            return
+
+        audio_path = None
+        if not record:
+            picked = filedialog.askopenfilename(
+                title="Choose a recording of this person speaking alone",
+                filetypes=[("Audio files", "*.m4a *.wav *.mp3 *.flac *.ogg *.aac *.webm *.mp4"),
+                           ("All files", "*.*")],
+            )
+            if not picked:
+                return
+            audio_path = Path(picked)
+
+        def status_cb(msg: str) -> None:
+            self._enroll_msg = msg  # picked up by the 2s refresh loop
+
+        def worker() -> None:
+            from smoke_signal.enrollment.service import enroll_from_file, record_clip
+            gpu_lock = getattr(self.queue, "gpu_lock", None) if self.queue else None
+            path = audio_path
+            temp_clip = None
+            if record:
+                temp_clip = record_clip(30, status_cb)
+                if temp_clip is None:
+                    return
+                path = temp_clip
+            try:
+                if enroll_from_file(name, path, status_cb, gpu_lock=gpu_lock):
+                    self._enroll_done = True
+            finally:
+                if temp_clip is not None:
+                    Path(temp_clip).unlink(missing_ok=True)
+
+        self._enroll_msg = "Starting…"
+        self._enroll_status.configure(text=self._enroll_msg)
+        self._enroll_thread = threading.Thread(target=worker, daemon=True, name="enroll")
+        self._enroll_thread.start()
 
     # -- Settings tab --
 
@@ -969,6 +1093,15 @@ class DashboardWindow:
 
     def _refresh(self) -> None:
         """Update status bar and auto-refresh active tab every 2 seconds."""
+        # Surface enrollment progress from the worker thread
+        if self._active_tab == "speakers":
+            status = getattr(self, "_enroll_status", None)
+            if status is not None and status.winfo_exists():
+                status.configure(text=self._enroll_msg or "")
+            if self._enroll_done:
+                self._enroll_done = False
+                self._switch_tab("speakers")
+
         # Mirror pause state from the queue (pause may be toggled from the tray)
         if self.queue and self.queue.is_paused != self._paused:
             self._paused = self.queue.is_paused
