@@ -34,6 +34,7 @@ Smoke Signal uses [WhisperX](https://github.com/m-bain/whisperX) for transcripti
   - Accept the terms for these models (click each link and agree):
     - https://huggingface.co/pyannote/speaker-diarization-3.1
     - https://huggingface.co/pyannote/segmentation-3.0
+    - https://huggingface.co/pyannote/embedding (needed for speaker enrollment/identification)
 
 ## Installation
 
@@ -199,14 +200,17 @@ See `config.yaml.example` for all options with comments.
 
 ### "HF_TOKEN not set"
 
-- Make sure `.env` exists in the project root with `HF_TOKEN=hf_...`
+- Make sure `.env` exists in your Smoke Signal data directory with `HF_TOKEN=hf_...`
+  - Windows: `%LOCALAPPDATA%\SmokeSignal\.env`
+  - macOS: `~/Library/Application Support/SmokeSignal/.env`
 - Or set it as an environment variable: `export HF_TOKEN=hf_...`
 
 ### "Access to model is restricted" / 403 error from HuggingFace
 
-You need to accept the model terms on HuggingFace. Visit both of these links while logged in and click "Agree":
+You need to accept the model terms on HuggingFace. Visit these links while logged in and click "Agree":
 - https://huggingface.co/pyannote/speaker-diarization-3.1
 - https://huggingface.co/pyannote/segmentation-3.0
+- https://huggingface.co/pyannote/embedding
 
 ### "VRAM insufficient" or out-of-memory errors
 

@@ -93,6 +93,14 @@ def transcribe(
         use_auth_token=hf_token, device=torch.device(device),
     )
 
+    # Work around pyannote.audio 4.x VRAM spike on long recordings
+    # (pyannote/pyannote-audio#1963): the diarization pipeline can spike
+    # ~10GB allocated with default embedding batch size. Smaller batches
+    # keep peak VRAM low at a negligible speed cost.
+    _pyannote_pipe = getattr(diarize_model, "model", None)
+    if _pyannote_pipe is not None and hasattr(_pyannote_pipe, "embedding_batch_size"):
+        _pyannote_pipe.embedding_batch_size = 4
+
     diarize_kwargs = {}
     if num_speakers is not None:
         diarize_kwargs["min_speakers"] = num_speakers
