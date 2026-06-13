@@ -84,6 +84,13 @@ pip install -e .
 pip install -e ".[watch]"
 ```
 
+The `[watch]` extras include everything for the background watcher, system tray,
+and the dashboard's **Record 30s** speaker-enrollment button (via `sounddevice`).
+If you installed before this was added, re-run `pip install -e ".[watch]"` to get
+it — quit Smoke Signal first, since it can't overwrite its own running `.exe`.
+The Record button stays hidden if `sounddevice` isn't installed; everything else
+(including enrolling a speaker from an existing audio file) works without it.
+
 #### 5. Set up configuration
 
 Smoke Signal stores its config in `%LOCALAPPDATA%\SmokeSignal` (Windows) or `~/Library/Application Support/SmokeSignal` (Mac). A default `config.yaml` is created on first run.
@@ -246,12 +253,4 @@ Make sure `watch_dir` in `config.yaml` points to an existing folder on your mach
 
 Smoke Signal is developed and tested on Windows with an NVIDIA GPU. On Mac:
 
-- **Apple Silicon (M1/M2/M3/M4):** WhisperX can use MPS acceleration. Set `compute_type: float32` in config.yaml (float16 is not supported on MPS). Performance will be slower than NVIDIA CUDA but much faster than CPU.
-- **Intel Mac:** CPU-only, will be slow.
-- **Notifications:** The `winotify` package is Windows-only. Install without the watch extras and use `--no-tray` mode, or install `pystray` and `Pillow` manually (the tray icon works cross-platform, just not Windows toast notifications).
-
-Mac support is not fully tested — contributions welcome.
-
-## License
-
-[MIT](LICENSE)
+- **Apple Silicon (M1/M2/M3/M4):** WhisperX can use MPS acceleration. Set `compute_type: float32` in
