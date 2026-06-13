@@ -33,7 +33,7 @@ logger = logging.getLogger(__name__)
 
 # === Cinder Design System ===
 
-BG_DEEP = "#161616"
+BG_DEEP = "#000000"
 BG = "#1c1c1c"
 BG_CARD = "#242424"
 BG_CARD_HOVER = "#2e2e2e"
@@ -240,6 +240,10 @@ class DashboardWindow:
             self._root.deiconify()
             self._root.lift()
             self._root.focus_force()
+            # Reapply dark title bar now that the window is actually visible —
+            # setting it while withdrawn doesn't repaint the caption on Windows.
+            from smoke_signal.platform import apply_window_theme
+            apply_window_theme(self._root)
         self._root.after(100, self._poll_signals)
 
     def _on_close(self) -> None:
@@ -279,18 +283,25 @@ class DashboardWindow:
         tab_bar.pack_propagate(False)
 
         self._tab_buttons = {}
+        self._tab_underlines = {}
         for tab_id, label in [("activity", "Activity"), ("held", "Held Files"), ("folders", "Folders"), ("speakers", "Speakers"), ("settings", "Settings")]:
+            col = tk.Frame(tab_bar, bg=BG)
+            col.pack(side="left", padx=(4, 0))
             btn = tk.Label(
-                tab_bar, text=label, font=(FONT[0], 10),
+                col, text=label, font=(FONT[0], 10),
                 bg=BG, fg=FG_DIM, padx=16, pady=8, cursor="hand2",
             )
-            btn.pack(side="left", padx=(4, 0))
+            btn.pack(side="top")
+            # Accent underline that lights up for the active tab
+            underline = tk.Frame(col, bg=BG, height=2)
+            underline.pack(side="top", fill="x")
             btn.bind("<Button-1>", lambda e, t=tab_id: self._switch_tab(t))
             btn.bind("<Enter>", lambda e, b=btn: b.configure(fg=FG))
             btn.bind("<Leave>", lambda e, b=btn, t=tab_id: b.configure(
                 fg=ACCENT if t == self._active_tab else FG_DIM
             ))
             self._tab_buttons[tab_id] = btn
+            self._tab_underlines[tab_id] = underline
 
         # Separator under tabs
         tk.Frame(root, bg=BORDER, height=1).pack(fill="x")
@@ -317,6 +328,22 @@ class DashboardWindow:
         if self._summarize_command():
             self._add_summarize_footer_btn(footer)
 
+        # Logs link — always available (was previously only shown alongside
+        # the Summarize button, so most users never saw it).
+        logs_btn = tk.Label(
+            footer, text="Logs", font=(FONT[0], 9),
+            bg=BG_DEEP, fg=FG_MUTED, padx=8, pady=6, cursor="hand2",
+        )
+        logs_btn.pack(side="right", padx=(0, 16), pady=8)
+        logs_btn.bind("<Button-1>", lambda e: self._open_path(DEFAULT_LOGS_DIR))
+        logs_btn.bind("<Enter>", lambda e: logs_btn.configure(fg=FG_DIM))
+        logs_btn.bind("<Leave>", lambda e: logs_btn.configure(fg=FG_MUTED))
+
+        # Load the default tab — must run unconditionally (previously this
+        # lived inside the Summarize-only path, leaving the window blank on
+        # open for anyone without a summarize command configured).
+        self._switch_tab("activity")
+
     def _add_summarize_footer_btn(self, footer: tk.Frame) -> None:
         summarize_btn = tk.Label(
             footer, text="Summarize", font=(FONT[0], 10),
@@ -327,23 +354,14 @@ class DashboardWindow:
         summarize_btn.bind("<Enter>", lambda e: summarize_btn.configure(bg=ACCENT_GLOW))
         summarize_btn.bind("<Leave>", lambda e: summarize_btn.configure(bg=ACCENT))
 
-        logs_btn = tk.Label(
-            footer, text="Logs", font=(FONT[0], 9),
-            bg=BG_DEEP, fg=FG_MUTED, padx=8, pady=6, cursor="hand2",
-        )
-        logs_btn.pack(side="right", padx=(0, 16), pady=8)
-        logs_btn.bind("<Button-1>", lambda e: self._open_path(DEFAULT_LOGS_DIR))
-        logs_btn.bind("<Enter>", lambda e: logs_btn.configure(fg=FG_DIM))
-        logs_btn.bind("<Leave>", lambda e: logs_btn.configure(fg=FG_MUTED))
-
-        self._switch_tab("activity")
-
     # -- Tabs --
 
     def _switch_tab(self, tab_id: str) -> None:
         self._active_tab = tab_id
         for tid, btn in self._tab_buttons.items():
             btn.configure(fg=ACCENT if tid == tab_id else FG_DIM)
+        for tid, underline in self._tab_underlines.items():
+            underline.configure(bg=ACCENT if tid == tab_id else BG)
 
         # Clear content
         for child in self._content.winfo_children():

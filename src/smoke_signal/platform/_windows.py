@@ -100,15 +100,31 @@ def apply_window_theme(tk_root=None) -> None:
     except Exception:
         pass
 
-    # Dark title bar on Windows 11 — needs a window handle
+    # Dark title bar on Windows 10/11 — needs a window handle
     if tk_root is not None:
         try:
+            tk_root.update_idletasks()  # ensure the native window exists
             hwnd = ctypes.windll.user32.GetParent(tk_root.winfo_id())
-            DWMWA_USE_IMMERSIVE_DARK_MODE = 20
             value = ctypes.c_int(1)
-            ctypes.windll.dwmapi.DwmSetWindowAttribute(
-                hwnd, DWMWA_USE_IMMERSIVE_DARK_MODE,
-                ctypes.byref(value), ctypes.sizeof(value),
+            # Attribute 20 on Windows 11 / recent Win10 (build >= 18985);
+            # attribute 19 on earlier Win10 builds. Try both — the wrong one
+            # is harmless.
+            for attr in (20, 19):
+                try:
+                    ctypes.windll.dwmapi.DwmSetWindowAttribute(
+                        hwnd, attr, ctypes.byref(value), ctypes.sizeof(value),
+                    )
+                except Exception:
+                    pass
+            # Force the caption (title bar) to repaint so the dark color takes
+            # effect immediately instead of waiting for the next resize.
+            SWP_NOSIZE = 0x0001
+            SWP_NOMOVE = 0x0002
+            SWP_NOZORDER = 0x0004
+            SWP_FRAMECHANGED = 0x0020
+            ctypes.windll.user32.SetWindowPos(
+                hwnd, 0, 0, 0, 0, 0,
+                SWP_NOSIZE | SWP_NOMOVE | SWP_NOZORDER | SWP_FRAMECHANGED,
             )
         except Exception:
             pass

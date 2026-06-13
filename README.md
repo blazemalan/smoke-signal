@@ -253,4 +253,12 @@ Make sure `watch_dir` in `config.yaml` points to an existing folder on your mach
 
 Smoke Signal is developed and tested on Windows with an NVIDIA GPU. On Mac:
 
-- **Apple Silicon (M1/M2/M3/M4):** WhisperX can use MPS acceleration. Set `compute_type: float32` in
+- **Apple Silicon (M1/M2/M3/M4):** WhisperX can use MPS acceleration. Set `compute_type: float32` in config.yaml (float16 is not supported on MPS). Performance will be slower than NVIDIA CUDA but much faster than CPU.
+- **Intel Mac:** CPU-only, will be slow.
+- **Notifications:** The `winotify` package is Windows-only. Install without the watch extras and use `--no-tray` mode, or install `pystray` and `Pillow` manually (the tray icon works cross-platform, just not Windows toast notifications).
+
+Mac support is not fully tested — contributions welcome.
+
+## License
+
+[MIT](LICENSE)
