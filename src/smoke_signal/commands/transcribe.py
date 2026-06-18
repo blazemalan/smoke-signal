@@ -14,7 +14,7 @@ from smoke_signal.config import (
 def do_transcribe(audio_file, model, language, speakers, identify, output, compute_type, profile, vault, batch_size, no_align, format_type="markdown"):
     from smoke_signal.gpu import check_gpu, check_vram_sufficient
     from smoke_signal.output.markdown import format_transcript, get_output_path
-    from smoke_signal.output.structured import format_csv, format_json
+    from smoke_signal.output.structured import format_csv, format_json, format_txt
     from smoke_signal.pipeline.local import transcribe as run_transcribe
 
     # Load config and merge with profile
@@ -86,6 +86,8 @@ def do_transcribe(audio_file, model, language, speakers, identify, output, compu
         formatted_text = format_json(result)
     elif format_type == "csv":
         formatted_text = format_csv(result)
+    elif format_type == "txt":
+        formatted_text = format_txt(result)
     else:
         formatted_text = format_transcript(result, vault_mode=vault)
 
@@ -108,6 +110,8 @@ def do_transcribe(audio_file, model, language, speakers, identify, output, compu
             output = output.with_suffix(".json")
         elif format_type == "csv":
             output = output.with_suffix(".csv")
+        elif format_type == "txt":
+            output = output.with_suffix(".txt")
 
     output.write_text(formatted_text, encoding="utf-8")
     click.echo(f"Transcript saved to: {output}")

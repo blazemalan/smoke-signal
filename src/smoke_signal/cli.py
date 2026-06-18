@@ -35,7 +35,7 @@ def main():
 @click.option("--vault", is_flag=True, default=False, help="Output in vault meeting-note format")
 @click.option("--batch-size", type=int, default=16, help="Whisper batch size (lower = less VRAM)")
 @click.option("--no-align", is_flag=True, default=False, help="Skip word-level alignment (faster)")
-@click.option("--format", "format_type", type=click.Choice(["markdown", "json", "csv"]), default="markdown", help="Output format (markdown, json, csv)")
+@click.option("--format", "format_type", type=click.Choice(["markdown", "json", "csv", "txt"]), default="markdown", help="Output format (markdown, json, csv, txt)")
 def transcribe(audio_file, model, language, speakers, identify, output, compute_type, profile, vault, batch_size, no_align, format_type):
     """Transcribe an audio file with speaker diarization."""
     from smoke_signal.commands.transcribe import do_transcribe
