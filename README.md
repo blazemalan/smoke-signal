@@ -118,6 +118,12 @@ smoke-signal verify
 
 This checks your GPU, Python version, dependencies, and HuggingFace token.
 
+You can also run the first-time setup wizard to configure your directories and HuggingFace token:
+
+```bash
+smoke-signal setup
+```
+
 ## Usage
 
 ### Transcribe a file
@@ -131,6 +137,18 @@ With options:
 ```bash
 smoke-signal transcribe meeting.m4a --model large-v3 --speakers 4 --identify
 smoke-signal transcribe lecture.m4a --profile small-group
+# Save to a specific output file
+smoke-signal transcribe interview.m4a --output path/to/save.md
+# Adjust compute type and batch size for VRAM usage
+smoke-signal transcribe old_gpu.m4a --compute-type float32 --batch-size 8
+# Output in vault meeting-note format
+smoke-signal transcribe notes.m4a --vault
+# Skip word-level alignment for faster processing
+smoke-signal transcribe quick.m4a --no-align
+# Different output formats (json/csv outputs use the corresponding file extension)
+smoke-signal transcribe podcast.m4a --format markdown
+smoke-signal transcribe dataset.m4a --format json
+smoke-signal transcribe data.m4a --format csv
 ```
 
 ### Enroll a speaker
@@ -139,6 +157,9 @@ Provide 30-60 seconds of solo speech for best results:
 
 ```bash
 smoke-signal enroll "Alice" alice-solo.m4a
+
+# Add more audio to an existing profile instead of replacing it
+smoke-signal enroll "Alice" alice-more.m4a --append
 ```
 
 Once enrolled, use `--identify` during transcription to label speakers by name.
@@ -160,6 +181,15 @@ smoke-signal watch
 
 # Headless (no tray icon)
 smoke-signal watch --no-tray
+
+# Check once and exit (no daemon)
+smoke-signal watch --once
+
+# Adjust how many days back to scan for unprocessed files (default is 7)
+smoke-signal watch --scan-days 14
+
+# Process unprocessed files from the last N days
+smoke-signal watch --backfill 30
 
 # Windowless on Windows (no console window, just tray icon)
 smoke-signal-tray
