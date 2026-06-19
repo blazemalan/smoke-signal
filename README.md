@@ -145,10 +145,13 @@ smoke-signal transcribe old_gpu.m4a --compute-type float32 --batch-size 8
 smoke-signal transcribe notes.m4a --vault
 # Skip word-level alignment for faster processing
 smoke-signal transcribe quick.m4a --no-align
-# Different output formats (json/csv outputs use the corresponding file extension)
+# Different output formats (markdown, json, csv, txt)
+# json/csv outputs use the corresponding file extension
 smoke-signal transcribe podcast.m4a --format markdown
 smoke-signal transcribe dataset.m4a --format json
 smoke-signal transcribe data.m4a --format csv
+# Plain text: speaker-grouped, no frontmatter or timestamps (handy for pasting into email)
+smoke-signal transcribe meeting.m4a --format txt
 ```
 
 ### Enroll a speaker
