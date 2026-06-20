@@ -47,3 +47,12 @@ def do_profiles_delete(name):
         click.echo(f"Deleted profile '{name}'.")
     else:
         click.echo(f"Profile '{name}' not found.")
+
+
+def do_profiles_rename(old_name, new_name):
+    from smoke_signal.enrollment.manager import rename_profile
+
+    if rename_profile(old_name, new_name, DEFAULT_PROFILES_DIR):
+        click.echo(f"Renamed profile '{old_name}' to '{new_name}'.")
+    else:
+        click.echo(f"Profile '{old_name}' not found or '{new_name}' already exists.")

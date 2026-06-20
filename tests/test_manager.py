@@ -63,6 +63,30 @@ def test_delete_profile(manager, tmp_path):
     # Verify deletion of non-existing profile
     assert manager.delete_profile("Missing", tmp_path) is False
 
+def test_rename_profile(manager, tmp_path):
+    # Create a profile
+    bob_path = tmp_path / "bob.json"
+    create_mock_profile(bob_path, "Bob")
+
+    # Verify rename of existing profile
+    assert manager.rename_profile("Bob", "Robert", tmp_path) is True
+    assert not bob_path.exists()
+    robert_path = tmp_path / "robert.json"
+    assert robert_path.exists()
+
+    # Load and check contents
+    profile = manager._load_profile(robert_path)
+    assert profile["name"] == "Robert"
+    assert profile["embedding"] == [0.1, 0.2, 0.3]
+
+    # Verify rename fails if new name already exists
+    alice_path = tmp_path / "alice.json"
+    create_mock_profile(alice_path, "Alice")
+    assert manager.rename_profile("Robert", "Alice", tmp_path) is False
+
+    # Verify rename fails if old name does not exist
+    assert manager.rename_profile("Missing", "New", tmp_path) is False
+
 def test_load_all_embeddings(manager, tmp_path):
     bob_path = tmp_path / "bob.json"
     create_mock_profile(bob_path, "Bob")

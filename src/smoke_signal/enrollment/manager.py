@@ -122,6 +122,20 @@ def delete_profile(name: str, profiles_dir: Path) -> bool:
     return False
 
 
+def rename_profile(old_name: str, new_name: str, profiles_dir: Path) -> bool:
+    old_path = profiles_dir / f"{old_name.lower()}.json"
+    new_path = profiles_dir / f"{new_name.lower()}.json"
+
+    if not old_path.exists() or new_path.exists():
+        return False
+
+    profile = _load_profile(old_path)
+    profile["name"] = new_name
+    _save_profile(new_path, profile)
+    old_path.unlink()
+    return True
+
+
 def load_all_embeddings(profiles_dir: Path) -> dict[str, np.ndarray]:
     """Load all speaker profile embeddings. Returns {name: embedding_vector}."""
     embeddings = {}

@@ -80,6 +80,15 @@ def profiles_delete(name):
     do_profiles_delete(name)
 
 
+@profiles.command("rename")
+@click.argument("old_name")
+@click.argument("new_name")
+def profiles_rename(old_name, new_name):
+    """Rename a speaker profile."""
+    from smoke_signal.commands.profiles import do_profiles_rename
+    do_profiles_rename(old_name, new_name)
+
+
 @main.command()
 def verify():
     """Verify GPU, dependencies, and configuration."""
