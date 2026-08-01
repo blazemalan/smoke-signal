@@ -5,7 +5,7 @@ from datetime import datetime
 from pathlib import Path
 import pytest
 
-# Inject fake heavy dependencies before importing do_transcribe
+# Inject fake heavy dependencies before importing transcribe
 fake_gpu = types.ModuleType("smoke_signal.gpu")
 fake_gpu.check_gpu = MagicMock(return_value={"available": False, "device": "cpu", "name": "CPU", "vram_total_mb": 0, "cuda_version": None})
 fake_gpu.check_vram_sufficient = MagicMock(return_value=(True, ""))
@@ -31,7 +31,7 @@ sys.modules["smoke_signal.gpu"] = fake_gpu
 sys.modules["smoke_signal.pipeline.local"] = fake_pipeline
 
 # Import the function to test
-from smoke_signal.commands.transcribe import do_transcribe
+from smoke_signal.commands.transcribe import transcribe
 import smoke_signal.commands.transcribe as transcribe_mod
 
 
@@ -53,7 +53,7 @@ def test_unknown_profile_warning(mock_config, capsys, dummy_audio, monkeypatch, 
     mock_config({"profiles": {"prof1": {}, "prof2": {}}})
     monkeypatch.setattr(transcribe_mod, "DEFAULT_TRANSCRIPTS_DIR", tmp_path)
 
-    do_transcribe(
+    transcribe.callback(
         audio_file=dummy_audio,
         model=None,
         language=None,
@@ -64,7 +64,8 @@ def test_unknown_profile_warning(mock_config, capsys, dummy_audio, monkeypatch, 
         profile="unknown_prof",
         vault=False,
         batch_size=8,
-        no_align=False
+        no_align=False,
+        format_type="markdown"
     )
 
     captured = capsys.readouterr()
@@ -84,7 +85,7 @@ def test_known_profile_merges_over_defaults(mock_config, dummy_audio, monkeypatc
     }
     mock_config(config_data)
 
-    do_transcribe(
+    transcribe.callback(
         audio_file=dummy_audio,
         model=None,
         language=None,
@@ -95,7 +96,8 @@ def test_known_profile_merges_over_defaults(mock_config, dummy_audio, monkeypatc
         profile="myprof",
         vault=False,
         batch_size=8,
-        no_align=False
+        no_align=False,
+        format_type="markdown"
     )
 
     # Verify the output is written to profile_out_dir
@@ -114,7 +116,7 @@ def test_configured_output_dir_used(mock_config, dummy_audio, monkeypatch, tmp_p
     }
     mock_config(config_data)
 
-    do_transcribe(
+    transcribe.callback(
         audio_file=dummy_audio,
         model=None,
         language=None,
@@ -125,7 +127,8 @@ def test_configured_output_dir_used(mock_config, dummy_audio, monkeypatch, tmp_p
         profile=None,
         vault=False,
         batch_size=8,
-        no_align=False
+        no_align=False,
+        format_type="markdown"
     )
 
     expected_file = config_out_dir / "test.md"
@@ -137,7 +140,7 @@ def test_no_output_dir_falls_back_to_default(mock_config, dummy_audio, monkeypat
     default_dir = tmp_path / "default_transcripts"
     monkeypatch.setattr(transcribe_mod, "DEFAULT_TRANSCRIPTS_DIR", default_dir)
 
-    do_transcribe(
+    transcribe.callback(
         audio_file=dummy_audio,
         model=None,
         language=None,
@@ -148,7 +151,8 @@ def test_no_output_dir_falls_back_to_default(mock_config, dummy_audio, monkeypat
         profile=None,
         vault=False,
         batch_size=8,
-        no_align=False
+        no_align=False,
+        format_type="markdown"
     )
 
     expected_file = default_dir / "test.md"
@@ -162,7 +166,7 @@ def test_explicit_output_path_wins(mock_config, dummy_audio, monkeypatch, tmp_pa
     explicit_out_file = tmp_path / "explicit" / "custom.md"
     explicit_out_file.parent.mkdir(parents=True)
 
-    do_transcribe(
+    transcribe.callback(
         audio_file=dummy_audio,
         model=None,
         language=None,
@@ -173,7 +177,8 @@ def test_explicit_output_path_wins(mock_config, dummy_audio, monkeypatch, tmp_pa
         profile=None,
         vault=False,
         batch_size=8,
-        no_align=False
+        no_align=False,
+        format_type="markdown"
     )
 
     assert explicit_out_file.exists()

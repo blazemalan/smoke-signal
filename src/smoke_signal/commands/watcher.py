@@ -3,7 +3,13 @@ from pathlib import Path
 import click
 
 
-def do_watch(once, scan_days, backfill, no_tray):
+@click.command("watch")
+@click.option("--once", is_flag=True, help="Check for new files once and exit (no daemon)")
+@click.option("--scan-days", default=7, help="How many days back to scan for unprocessed files")
+@click.option("--backfill", type=int, default=None, help="Process unprocessed files from last N days")
+@click.option("--no-tray", is_flag=True, help="Run headless without system tray icon")
+def watch(once, scan_days, backfill, no_tray):
+    """Start the file watcher daemon to auto-transcribe new recordings."""
     from smoke_signal.watcher.daemon import run_daemon, run_once
 
     if once:
@@ -12,7 +18,11 @@ def do_watch(once, scan_days, backfill, no_tray):
         run_daemon(scan_days=scan_days, use_tray=not no_tray)
 
 
-def do_classify_file(file_path, description):
+@click.command("classify")
+@click.argument("file_path", type=click.Path(exists=True, path_type=Path))
+@click.argument("description")
+def classify_file(file_path, description):
+    """Manually classify a held recording and trigger processing."""
     from smoke_signal.config import DEFAULT_DATA_DIR, DEFAULT_DB_PATH
     from smoke_signal.watcher.classifier import classify_from_description
     from smoke_signal.watcher.job import run_job
@@ -63,7 +73,9 @@ def do_classify_file(file_path, description):
         gpu_lock.release()
 
 
-def do_status():
+@click.command("status")
+def status():
+    """Show watcher status: queue depth, recent jobs, held files."""
     from smoke_signal.config import DEFAULT_DATA_DIR, DEFAULT_DB_PATH
     from smoke_signal.watcher.queue import GpuLock
     from smoke_signal.watcher.state import get_held, get_pending, get_recent_jobs, init_db
