@@ -14,7 +14,7 @@ from smoke_signal.watcher.state import get_all_processed_filepaths, is_processed
 logger = logging.getLogger(__name__)
 
 # Defaults (overridable via config)
-DEFAULT_STABILITY_INTERVAL = 5    # seconds between size checks
+DEFAULT_POLL_INTERVAL_SECONDS = 5    # seconds between size checks
 DEFAULT_STABILITY_THRESHOLD = 30  # seconds of stable size = done syncing
 DEFAULT_MIN_FILE_SIZE = 50_000    # 50KB minimum (skip stubs)
 
@@ -26,7 +26,7 @@ class ICloudFileHandler(FileSystemEventHandler):
         self,
         on_file_ready: Callable[[Path], None],
         db_path: Path,
-        stability_interval: int = DEFAULT_STABILITY_INTERVAL,
+        poll_interval_seconds: int = DEFAULT_POLL_INTERVAL_SECONDS,
         stability_threshold: int = DEFAULT_STABILITY_THRESHOLD,
         min_file_size: int = DEFAULT_MIN_FILE_SIZE,
         extensions: list[str] | None = None,
@@ -34,7 +34,7 @@ class ICloudFileHandler(FileSystemEventHandler):
         super().__init__()
         self.on_file_ready = on_file_ready
         self.db_path = db_path
-        self.stability_interval = stability_interval
+        self.poll_interval_seconds = poll_interval_seconds
         self.stability_threshold = stability_threshold
         self.min_file_size = min_file_size
         self.extensions = {f".{ext.lstrip('.')}".lower() for ext in (extensions or [".m4a"])}
