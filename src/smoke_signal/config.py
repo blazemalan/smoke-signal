@@ -96,7 +96,10 @@ def get_profile(config: dict, profile_name: str) -> dict:
 
 
 def get_watcher_config(config: dict) -> dict:
-    return config.get("watcher", {})
+    watcher_config = config.get("watcher", {})
+    if "trash_after_processing" not in watcher_config:
+        watcher_config["trash_after_processing"] = False
+    return watcher_config
 
 
 def save_config(config: dict, config_path: Path | None = None) -> None:

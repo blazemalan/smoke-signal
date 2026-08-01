@@ -40,6 +40,7 @@ from smoke_signal.watcher.state import (
     reset_stale_processing,
     update_status,
 )
+from send2trash import send2trash
 
 logger = logging.getLogger("smoke_signal.watcher")
 
@@ -163,6 +164,10 @@ def run_daemon(
     # Processing queue
     def process_fn(job: dict) -> None:
         run_job(job, db_path)
+        if watcher_config.get("trash_after_processing"):
+            file_path = Path(job["file_path"])
+            send2trash(file_path)
+            logger.info(f"Trashed original file: {file_path.name}")
 
     queue = ProcessingQueue(db_path, process_fn, gpu_lock)
 
@@ -365,6 +370,9 @@ def run_once(watch_dir: Path | None = None) -> None:
             }
             update_status(db_path, fp, "processing")
             run_job(job, db_path)
+            if watcher_config.get("trash_after_processing"):
+                send2trash(fp)
+                logger.info(f"Trashed original file: {fp.name}")
         except Exception as e:
             logger.error(f"Failed: {fp.name} — {e}")
             update_status(db_path, fp, "failed", error_message=str(e)[:500])
