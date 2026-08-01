@@ -99,6 +99,10 @@ def get_watcher_config(config: dict) -> dict:
     return config.get("watcher", {})
 
 
+def get_poll_interval_seconds(config: dict) -> int:
+    return get_watcher_config(config).get("poll_interval_seconds", 5)
+
+
 def save_config(config: dict, config_path: Path | None = None) -> None:
     """Write config dict back to config.yaml."""
     path = config_path or DEFAULT_CONFIG_PATH

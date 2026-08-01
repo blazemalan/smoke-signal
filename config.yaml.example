@@ -26,6 +26,7 @@ watcher:
   # REQUIRED: folder where your voice recordings appear (e.g., synced from phone)
   watch_dir: ""
   scan_days: 7
+  poll_interval_seconds: 5     # Wait this long between checking for new files
   stability_seconds: 30        # Wait this long after file stops changing before processing
   min_file_size_bytes: 50000   # Ignore files smaller than this (likely not real recordings)
   # extensions: [".m4a", ".wav", ".mp3"] # Default is [".m4a"]

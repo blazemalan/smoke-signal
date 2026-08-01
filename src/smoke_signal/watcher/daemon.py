@@ -21,6 +21,7 @@ from smoke_signal.config import (
     DEFAULT_DB_PATH,
     DEFAULT_LOGS_DIR,
     load_config,
+    get_poll_interval_seconds,
 )
 from smoke_signal.watcher.classifier import classify, classify_from_description
 from smoke_signal.watcher.job import run_job
@@ -167,6 +168,7 @@ def run_daemon(
     queue = ProcessingQueue(db_path, process_fn, gpu_lock)
 
     # File handler
+    poll_interval = get_poll_interval_seconds(config)
     stability_seconds = watcher_config.get("stability_seconds", 30)
     min_size = watcher_config.get("min_file_size_bytes", 50_000)
     extensions = watcher_config.get("extensions", [".m4a"])
@@ -174,6 +176,7 @@ def run_daemon(
     handler = ICloudFileHandler(
         on_file_ready=lambda fp: _on_file_ready(fp, db_path, queue, watcher_config),
         db_path=db_path,
+        poll_interval_seconds=poll_interval,
         stability_threshold=stability_seconds,
         min_file_size=min_size,
         extensions=extensions,
@@ -210,7 +213,7 @@ def run_daemon(
                 handler.check_stability()
             except Exception:
                 logger.exception("Stability check crashed; continuing")
-            time.sleep(handler.stability_interval)
+            time.sleep(handler.poll_interval_seconds)
 
     stability_thread = threading.Thread(target=stability_loop, daemon=True)
     stability_thread.start()
