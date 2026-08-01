@@ -75,7 +75,7 @@ class SmokeSignalTray:
             ),
             pystray.Menu.SEPARATOR,
             pystray.MenuItem(
-                lambda _: "Resume" if self._is_paused() else "Pause",
+                lambda _: "Resume Watcher" if self._is_paused() else "Pause Watcher",
                 self._toggle_pause,
             ),
             pystray.MenuItem("Quit", self._quit),
