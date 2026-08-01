@@ -30,6 +30,7 @@ watcher:
   min_file_size_bytes: 50000   # Ignore files smaller than this (likely not real recordings)
   # extensions: [".m4a", ".wav", ".mp3"] # Default is [".m4a"]
   enable_notifications: true
+  trash_after_processing: false
 
   # Categories — files with matching keywords get auto-classified.
   # Unmatched files are held for manual classification via: smoke-signal classify
