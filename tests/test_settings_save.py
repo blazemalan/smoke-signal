@@ -15,6 +15,8 @@ def dash(monkeypatch):
     monkeypatch.setitem(sys.modules, "tkinter", MagicMock())
     sys.modules.pop("smoke_signal.watcher.dashboard", None)
     import smoke_signal.watcher.dashboard as dashboard
+    import smoke_signal.watcher.dashboard_tabs as tabs
+    dashboard.tabs = tabs
     yield dashboard
     sys.modules.pop("smoke_signal.watcher.dashboard", None)
 
@@ -53,8 +55,8 @@ def _stub(widgets):
 
 def test_save_happy_path(dash, monkeypatch):
     saved = {}
-    monkeypatch.setattr(dash, "load_config", lambda: {"defaults": {}, "watcher": {}})
-    monkeypatch.setattr(dash, "save_config", lambda cfg: saved.update(cfg))
+    monkeypatch.setattr(dash.tabs, "load_config", lambda: {"defaults": {}, "watcher": {}})
+    monkeypatch.setattr(dash.tabs, "save_config", lambda cfg: saved.update(cfg))
 
     stub = _stub({
         "speakers": FakeWidget("4"),
@@ -62,7 +64,7 @@ def test_save_happy_path(dash, monkeypatch):
         "extensions": FakeWidget("m4a, .WAV, ,mp3"),
         "summarize_command": FakeWidget('claude "/transcribe {file}"'),
     })
-    dash.DashboardWindow._save_settings(stub)
+    dash.tabs.SettingsTab()._save_settings(stub)
 
     assert saved["defaults"]["speakers"] == 4
     assert saved["watcher"]["stability_seconds"] == 45
@@ -73,13 +75,13 @@ def test_save_happy_path(dash, monkeypatch):
 
 def test_save_rejects_bad_numbers_without_writing(dash, monkeypatch):
     saved = {}
-    monkeypatch.setattr(dash, "load_config", lambda: {})
-    monkeypatch.setattr(dash, "save_config", lambda cfg: saved.update(cfg))
+    monkeypatch.setattr(dash.tabs, "load_config", lambda: {})
+    monkeypatch.setattr(dash.tabs, "save_config", lambda cfg: saved.update(cfg))
 
     for field, value in [("speakers", "four"), ("speakers", "0"),
                          ("stability", "abc"), ("stability", "-5")]:
         stub = _stub({field: FakeWidget(value)})
-        dash.DashboardWindow._save_settings(stub)
+        dash.tabs.SettingsTab()._save_settings(stub)
         assert saved == {}, f"config written despite bad {field}={value!r}"
         assert stub._settings_status.text  # error shown
 
@@ -87,14 +89,14 @@ def test_save_rejects_bad_numbers_without_writing(dash, monkeypatch):
 def test_blank_fields_remove_keys(dash, monkeypatch):
     saved = {}
     monkeypatch.setattr(
-        dash, "load_config",
+        dash.tabs, "load_config",
         lambda: {"defaults": {"speakers": 4},
                  "integrations": {"summarize_command": "old"}},
     )
-    monkeypatch.setattr(dash, "save_config", lambda cfg: saved.update(cfg))
+    monkeypatch.setattr(dash.tabs, "save_config", lambda cfg: saved.update(cfg))
 
     stub = _stub({"speakers": FakeWidget(""), "summarize_command": FakeWidget("  ")})
-    dash.DashboardWindow._save_settings(stub)
+    dash.tabs.SettingsTab()._save_settings(stub)
 
     assert "speakers" not in saved["defaults"]
     assert "summarize_command" not in saved.get("integrations", {})
