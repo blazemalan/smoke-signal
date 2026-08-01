@@ -6,8 +6,10 @@ from smoke_signal.config import DEFAULT_DB_PATH
 from smoke_signal.watcher.state import get_failed, init_db, requeue_failed
 
 
-def do_retry(list_only: bool = False) -> None:
-    """List or requeue failed jobs."""
+@click.command("retry")
+@click.option("--list", "list_only", is_flag=True, help="List failed jobs without changing their status")
+def retry(list_only: bool = False) -> None:
+    """List and requeue failed watcher jobs."""
     if not DEFAULT_DB_PATH.exists():
         click.echo("Watcher database not found. Start with: smoke-signal watch")
         return

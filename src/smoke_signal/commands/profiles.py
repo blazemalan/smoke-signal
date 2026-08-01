@@ -1,9 +1,18 @@
+from pathlib import Path
 import click
 
 from smoke_signal.config import DEFAULT_PROFILES_DIR, get_hf_token
 
 
-def do_enroll(name, audio_file, append):
+@click.command("enroll")
+@click.argument("name")
+@click.argument("audio_file", type=click.Path(exists=True, path_type=Path))
+@click.option("--append", is_flag=True, help="Add to existing profile instead of replacing")
+def enroll(name, audio_file, append):
+    """Enroll a speaker from an audio file for future identification.
+
+    Provide 30-60 seconds of solo speech for best results.
+    """
     from smoke_signal.enrollment.manager import enroll_speaker
     from smoke_signal.gpu import check_gpu
 
@@ -23,7 +32,15 @@ def do_enroll(name, audio_file, append):
     click.echo(f"Profile saved: {profile_path}")
 
 
-def do_profiles_list():
+@click.group()
+def profiles():
+    """Manage speaker profiles."""
+    pass
+
+
+@profiles.command("list")
+def profiles_list():
+    """List all enrolled speaker profiles."""
     from smoke_signal.enrollment.manager import list_profiles
 
     profs = list_profiles(DEFAULT_PROFILES_DIR)
@@ -40,7 +57,10 @@ def do_profiles_list():
         click.echo(f"{p['name']:<15} {p['num_samples']:<10} {created:<12} {updated:<12}")
 
 
-def do_profiles_delete(name):
+@profiles.command("delete")
+@click.argument("name")
+def profiles_delete(name):
+    """Delete a speaker profile."""
     from smoke_signal.enrollment.manager import delete_profile
 
     if delete_profile(name, DEFAULT_PROFILES_DIR):
@@ -49,7 +69,11 @@ def do_profiles_delete(name):
         click.echo(f"Profile '{name}' not found.")
 
 
-def do_profiles_rename(old_name, new_name):
+@profiles.command("rename")
+@click.argument("old_name")
+@click.argument("new_name")
+def profiles_rename(old_name, new_name):
+    """Rename a speaker profile."""
     from smoke_signal.enrollment.manager import rename_profile
 
     if rename_profile(old_name, new_name, DEFAULT_PROFILES_DIR):

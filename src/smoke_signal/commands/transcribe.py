@@ -11,7 +11,21 @@ from smoke_signal.config import (
 )
 
 
-def do_transcribe(audio_file, model, language, speakers, identify, output, compute_type, profile, vault, batch_size, no_align, format_type="markdown"):
+@click.command("transcribe")
+@click.argument("audio_file", type=click.Path(exists=True, path_type=Path))
+@click.option("--model", "-m", default=None, help="Whisper model (large-v3, large-v3-turbo, medium, small, base, tiny)")
+@click.option("--language", "-l", default=None, help="Language code or 'auto' for detection")
+@click.option("--speakers", "-s", type=int, default=None, help="Expected number of speakers")
+@click.option("--identify", "-i", is_flag=True, default=None, help="Match speakers against enrolled profiles")
+@click.option("--output", "-o", type=click.Path(path_type=Path), default=None, help="Output file path")
+@click.option("--compute-type", default=None, help="Compute type: float16 (default), float32")
+@click.option("--profile", "-p", default=None, help="Named config profile (therapy, work, etc.)")
+@click.option("--vault", is_flag=True, default=False, help="Output in vault meeting-note format")
+@click.option("--batch-size", type=int, default=16, help="Whisper batch size (lower = less VRAM)")
+@click.option("--no-align", is_flag=True, default=False, help="Skip word-level alignment (faster)")
+@click.option("--format", "format_type", type=click.Choice(["markdown", "json", "csv", "txt"]), default="markdown", help="Output format (markdown, json, csv, txt)")
+def transcribe(audio_file, model, language, speakers, identify, output, compute_type, profile, vault, batch_size, no_align, format_type="markdown"):
+    """Transcribe an audio file with speaker diarization."""
     from smoke_signal.gpu import check_gpu, check_vram_sufficient
     from smoke_signal.output.markdown import format_transcript, get_output_path
     from smoke_signal.output.structured import format_csv, format_json, format_txt
