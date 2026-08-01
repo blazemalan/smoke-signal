@@ -76,6 +76,9 @@ def _on_file_ready(
     watcher_config: dict,
 ) -> None:
     """Callback when a file passes stability checks."""
+    if queue.is_paused():
+        return
+
     if is_processed(db_path, file_path):
         return
 
